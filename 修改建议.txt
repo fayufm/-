@@ -1,0 +1,14 @@
+// 更改最大层级
+async function changeMaxLevel() {
+  settings.maxLevel = parseInt(maxLevelSlider.value);
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    updateMaxLevelPreview();
+    // 重新加载笔记列表以应用新的层级限制
+    await loadNotes();
+    showToast(`已设置最大层级为${settings.maxLevel}级`);
+  } catch (error) {
+    console.error('更新最大层级设置失败:', error);
+  }
+} 

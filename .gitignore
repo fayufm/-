@@ -1,0 +1,28 @@
+# 依赖目录
+node_modules/
+
+# 构建输出
+dist/
+小记事便携版/
+小记事便携版.zip
+小记事-便携版.zip
+
+# 日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 运行时数据
+APP/
+*.local
+
+# IDE配置
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db 

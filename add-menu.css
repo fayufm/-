@@ -1,0 +1,97 @@
+/* 添加按钮下拉菜单样式 */
+.add-btn-container {
+  position: relative;
+  display: inline-block;
+}
+
+.add-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background-color: var(--card-bg);
+  min-width: 120px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  z-index: 100;
+  margin-bottom: 8px;
+  display: none;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.add-menu.show {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
+
+.add-menu-item {
+  padding: 10px 15px;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.add-menu-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.add-menu-item:active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.add-menu::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  right: 20px;
+  border-width: 8px 8px 0;
+  border-style: solid;
+  border-color: var(--card-bg) transparent transparent;
+}
+
+.add-menu::before {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  right: 19px;
+  border-width: 9px 9px 0;
+  border-style: solid;
+  border-color: var(--border-color) transparent transparent;
+  z-index: -1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 深色模式适配 */
+body.dark-theme .add-menu {
+  background-color: var(--dark-card-bg);
+  border-color: var(--dark-border-color);
+}
+
+body.dark-theme .add-menu::after {
+  border-color: var(--dark-card-bg) transparent transparent;
+}
+
+body.dark-theme .add-menu::before {
+  border-color: var(--dark-border-color) transparent transparent;
+}
+
+body.dark-theme .add-menu-item:hover {
+  background-color: var(--dark-hover-bg);
+} 
