@@ -1,0 +1,2382 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-color: #f5f6f7;
+  --card-bg: white;
+  --text-color: #333;
+  --primary-color: #4a69bd;
+  --secondary-color: #3d5aa3;
+  --border-color: #e1e4e8;
+  --item-bg: #f8f9fa;
+  --item-hover-bg: #e9ecef;
+  --header-bg: #4a69bd;
+  --header-text: white;
+  --cancel-btn-bg: #e9ecef;
+  --cancel-btn-text: #495057;
+  --danger-color: #dc3545;
+  --subnote-indent: 30px;
+  --titlebar-height: 30px;
+  --toolbar-bg: #f8f9fa;
+  --toolbar-border: #ddd;
+  --toolbar-btn-hover: #e9ecef;
+  --toolbar-btn-active: #4a69bd;
+  --toolbar-btn-active-text: white;
+  --slider-bg: #ddd;
+  --slider-thumb: #4a69bd;
+}
+
+body.dark-theme {
+  --bg-color: #1a1a1a;
+  --card-bg: #2c2c2c;
+  --text-color: #f0f0f0;
+  --primary-color: #5c7cdc;
+  --secondary-color: #4e6bc4;
+  --border-color: #444;
+  --item-bg: #3c3c3c;
+  --item-hover-bg: #4a4a4a;
+  --header-bg: #2a2a2a;
+  --header-text: #f0f0f0;
+  --cancel-btn-bg: #4a4a4a;
+  --cancel-btn-text: #e0e0e0;
+  --danger-color: #e74c3c;
+  --toolbar-bg: #3c3c3c;
+  --toolbar-border: #444;
+  --toolbar-btn-hover: #4a4a4a;
+  --toolbar-btn-active: #5c7cdc;
+  --toolbar-btn-active-text: #f0f0f0;
+  --slider-bg: #444;
+  --slider-thumb: #5c7cdc;
+}
+
+body {
+  font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+  color: var(--text-color);
+  height: 100vh;
+  overflow: hidden;
+  transition: color 0.3s ease, opacity 0.3s ease;
+  margin: 0;
+  background-color: transparent !important; /* 强制透明背景 */
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* 添加背景容器，用于控制背景图片效果 */
+.bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 默认值，会被JavaScript动态修改 */
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  transition: opacity 0.3s ease, filter 0.3s ease, z-index 0s;
+  pointer-events: none; /* 确保不会阻止鼠标事件 */
+}
+
+/* 确保内容容器在背景上方，但保持透明 */
+.container {
+  position: relative;
+  z-index: 1; /* 默认值，确保内容可见 */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background-color: transparent !important; /* 强制透明背景 */
+  color: var(--text-color); /* 保持文字颜色 */
+}
+
+/* 确保所有卡片和元素使用变量颜色，而不是直接设置背景色 */
+#notes-list-container, 
+#note-content-container,
+.dialog-content,
+.custom-titlebar {
+  background-color: var(--card-bg);
+  transition: background-color 0.3s ease;
+  position: relative; /* 添加定位上下文 */
+  z-index: auto; /* 让元素使用默认堆叠顺序 */
+}
+
+/* 自定义标题栏样式 */
+.custom-titlebar {
+  height: var(--titlebar-height);
+  background-color: var(--card-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-color);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.titlebar-drag-region {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+}
+
+.titlebar-title {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.titlebar-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+}
+
+.titlebar-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+  margin-right: 8px;
+}
+
+/* 按钮基础样式 */
+.titlebar-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 46px;
+  height: 22px;
+  margin: 4px 4px;
+  border: none;
+  border-radius: 22px;
+  color: white;
+  font-family: sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+/* 最小化按钮 - 绿色 */
+#minimize-btn {
+  background-color: #27ae60;
+}
+
+#minimize-btn:hover {
+  opacity: 0.8;
+}
+
+/* 最大化按钮 - 黄色 */
+#maximize-btn {
+  background-color: #f39c12;
+}
+
+#maximize-btn:hover {
+  opacity: 0.8;
+}
+
+/* 关闭按钮 - 红色 */
+#close-btn {
+  background-color: #e74c3c;
+}
+
+#close-btn:hover {
+  opacity: 0.8;
+}
+
+/* 修改按钮内容 */
+#minimize-btn span::before {
+  content: "—";
+}
+
+#maximize-btn span::before {
+  content: "□";
+}
+
+#close-btn span::before {
+  content: "×";
+}
+
+header {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.app-version {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#notes-list-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-bg);
+  border-right: 1px solid var(--border-color);
+  transition: width 0.3s ease;
+}
+
+#notes-list {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.note-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  background-color: var(--item-bg);
+  border-radius: 4px;
+  border-left: 3px solid var(--primary-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.note-item:hover {
+  background-color: var(--item-hover-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.subnote {
+  margin-left: var(--subnote-indent);
+  border-left: 2px solid var(--secondary-color);
+  position: relative;
+}
+
+.subnote::before {
+  content: "→";
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary-color);
+  font-size: 14px;
+}
+
+/* 多级笔记样式 */
+.level-1 {
+  border-left-color: var(--primary-color);
+}
+
+.level-2 {
+  border-left-color: var(--secondary-color);
+  margin-left: var(--subnote-indent);
+}
+
+.level-3 {
+  border-left-color: #e67e22; /* 橙色 */
+  margin-left: calc(var(--subnote-indent) * 1.5);
+}
+
+.level-4 {
+  border-left-color: #9b59b6; /* 紫色 */
+  margin-left: calc(var(--subnote-indent) * 2);
+}
+
+.level-5 {
+  border-left-color: #e74c3c; /* 红色 */
+  margin-left: calc(var(--subnote-indent) * 2.5);
+}
+
+/* 新增 6 级和 7 级样式 */
+.level-6 {
+  border-left-color: #3498db; /* 蓝色 */
+  margin-left: calc(var(--subnote-indent) * 3);
+}
+
+.level-7 {
+  border-left-color: #2ecc71; /* 绿色 */
+  margin-left: calc(var(--subnote-indent) * 3.5);
+}
+
+/* 不同层级的箭头指示符 */
+.level-2::before {
+  content: "→";
+  color: var(--secondary-color);
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.level-3::before {
+  content: "→";
+  color: #e67e22;
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.level-4::before {
+  content: "→";
+  color: #9b59b6;
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.level-5::before {
+  content: "→";
+  color: #e74c3c;
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 新增 6 级和 7 级箭头样式 */
+.level-6::before {
+  content: "→";
+  color: #3498db;
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.level-7::before {
+  content: "→";
+  color: #2ecc71;
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 笔记标题样式，使其能够正确显示包含文体类型的标题 */
+.note-title-text {
+  position: relative;
+  display: inline;
+}
+
+/* 确保note-item的标题允许长内容折行 */
+.note-item h3 {
+  font-size: 16px;
+  margin-bottom: 5px;
+  padding-right: 30px; /* 为删除按钮留出空间 */
+  word-break: break-word; /* 允许长标题折行 */
+  line-height: 1.4;
+}
+
+.note-date {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #dc3545;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.note-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.button-container {
+  display: flex;
+  padding: 15px;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.action-button {
+  padding: 10px 15px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.action-button:hover {
+  background-color: var(--secondary-color);
+}
+
+#note-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-bg);
+}
+
+#note-controls {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#back-btn {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--primary-color);
+  padding: 5px 10px;
+  margin-right: 15px;
+}
+
+#note-title-display {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+#note-editor {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  outline: none;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--card-bg);
+}
+
+/* 编辑器中的图片样式 */
+#note-editor img {
+  max-width: 100%;
+  margin: 10px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 对话框样式 */
+.dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.dialog-content {
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  padding: 20px;
+  width: 350px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 2001;
+}
+
+.dialog-content h2 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: var(--text-color);
+}
+
+.dialog input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 15px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+  z-index: 2002;
+  position: relative;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.dialog-buttons .spacer {
+  flex-grow: 1;
+}
+
+.dialog-buttons button {
+  padding: 8px 15px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#cancel-btn, #settings-close-btn {
+  background-color: var(--cancel-btn-bg);
+  color: var(--cancel-btn-text);
+}
+
+#confirm-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* 设置对话框样式 */
+.settings-item {
+  margin-bottom: 20px;
+}
+
+.settings-item label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.theme-selector {
+  display: flex;
+  gap: 10px;
+}
+
+.theme-btn {
+  padding: 8px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.theme-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* 新增层级限制和子级数量限制的样式 */
+.level-limit-container,
+.child-limit-container {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+#max-level-value,
+#max-children-value {
+  margin-left: 10px;
+  width: 30px;
+  text-align: right;
+}
+
+.setting-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+/* 确保滑块样式统一 */
+.settings-item .slider {
+  flex-grow: 1;
+  max-width: 200px;
+}
+
+/* 空状态提示 */
+.empty-state {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* 响应式布局 */
+@media (min-width: 768px) {
+  main {
+    flex-direction: row;
+  }
+  
+  #notes-list-container.viewing-note {
+    width: 30%;
+  }
+  
+  #note-content-container {
+    display: flex;
+  }
+}
+
+@media (max-width: 767px) {
+  main {
+    flex-direction: column;
+  }
+  
+  #notes-list-container.viewing-note {
+    display: none;
+  }
+  
+  #note-content-container {
+    flex: 1;
+  }
+}
+
+/* 添加折叠图标样式 */
+.outline-toggle {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 3px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+  transition: transform 0.2s ease;
+}
+
+.outline.collapsed .outline-toggle {
+  transform: rotate(-90deg);
+}
+
+/* 折叠后子笔记的样式 */
+.outline.collapsed + .subnotes-container {
+  display: none;
+}
+
+/* 切换开关样式 */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--item-bg);
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--card-bg);
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 10px;
+}
+
+/* 确认对话框样式 */
+#confirm-dialog .dialog-content {
+  max-width: 400px;
+}
+
+#confirm-message {
+  margin: 20px 0;
+  line-height: 1.5;
+}
+
+#confirm-ok-btn {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+/* 确保确认对话框显示在其他对话框之上 */
+#confirm-dialog {
+  z-index: 2100 !important; /* 比普通对话框(2000)高 */
+}
+
+/* 富文本工具栏 */
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  background-color: var(--toolbar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
+  flex-wrap: wrap;
+}
+
+.format-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--toolbar-border);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 3px;
+  margin-right: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-family: 'Segoe MDL2 Assets', sans-serif;
+}
+
+.format-btn[data-command="bold"] {
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+}
+
+.format-btn[data-command="italic"] {
+  font-style: italic;
+  font-family: Arial, sans-serif;
+}
+
+.format-btn[data-command="underline"] {
+  text-decoration: underline;
+  font-family: Arial, sans-serif;
+}
+
+.format-btn[data-command="strikeThrough"] {
+  text-decoration: line-through;
+  font-family: Arial, sans-serif;
+}
+
+.format-btn:hover {
+  background-color: var(--toolbar-btn-hover);
+}
+
+.format-btn.active {
+  background-color: var(--toolbar-btn-active);
+  color: var(--toolbar-btn-active-text);
+}
+
+.separator {
+  width: 1px;
+  height: 24px;
+  background-color: var(--toolbar-border);
+  margin: 0 8px;
+}
+
+.font-size {
+  height: 32px;
+  border: 1px solid var(--toolbar-border);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 3px;
+  padding: 0 8px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.color-picker {
+  display: flex;
+  align-items: center;
+  margin-left: 5px;
+}
+
+.color-picker input {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--toolbar-border);
+  border-radius: 3px;
+  cursor: pointer;
+  background-color: var(--card-bg);
+  padding: 0;
+  margin-right: 5px;
+}
+
+.color-picker label {
+  font-size: 12px;
+  color: var(--text-color);
+}
+
+/* 放大模式样式 */
+#expanded-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-color);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.expanded-header {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  padding: 10px 15px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+#expanded-content {
+  flex: 1;
+  padding: 30px;
+  font-size: 2.5em;
+  overflow-y: auto;
+  outline: none;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+.action-button-small {
+  padding: 5px 10px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Segoe MDL2 Assets', sans-serif;
+}
+
+.action-button-small:hover {
+  background-color: var(--secondary-color);
+}
+
+#collapse-btn {
+  font-family: Arial, sans-serif;
+}
+
+/* 透明度滑块 */
+.slider-container {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--slider-bg);
+  outline: none;
+  margin-right: 10px;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  cursor: pointer;
+}
+
+#opacity-value {
+  min-width: 40px;
+  text-align: right;
+  font-size: 14px;
+}
+
+/* 背景设置样式 */
+.background-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.background-type {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.background-type label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.background-option {
+  margin-top: 5px;
+  padding: 5px 0;
+}
+
+.background-option.hidden {
+  display: none;
+}
+
+#background-color-container {
+  display: flex;
+  align-items: center;
+}
+
+#background-color {
+  width: 30px;
+  height: 30px;
+  border: none;
+  cursor: pointer;
+}
+
+#background-url {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+#choose-background-image {
+  padding: 5px 10px;
+}
+
+#selected-image-name {
+  margin-left: 10px;
+  font-size: 0.9em;
+  color: var(--text-color-secondary);
+}
+
+/* 备份功能相关样式 */
+.backup-dialog .dialog-content {
+  width: 450px;
+  max-width: 90vw;
+}
+
+.backup-notes-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 15px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.backup-notes-list .empty-state {
+  padding: 10px;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-style: italic;
+  text-align: center;
+  border-radius: 4px;
+  background-color: var(--item-bg);
+  margin: 10px 0;
+}
+
+.backup-note-item {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  background-color: var(--item-bg);
+  border-radius: 4px;
+  border-left: 2px solid var(--primary-color);
+  display: flex;
+  align-items: center;
+}
+
+.backup-note-item:hover {
+  background-color: var(--item-hover-bg);
+}
+
+.backup-note-item label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+  margin: 0;
+}
+
+.backup-note-item input[type="checkbox"] {
+  margin-right: 10px;
+}
+
+.backup-subnote {
+  margin-left: 30px;
+  border-left: 2px solid var(--secondary-color);
+}
+
+.backup-path-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+#backup-path-input {
+  flex: 1;
+  padding: 8px;
+  background-color: var(--item-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+/* 笔记最后更新时间样式 */
+.note-updated-date {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 3px;
+  font-style: italic;
+}
+
+body.dark-theme .note-updated-date {
+  color: #adb5bd;
+}
+
+/* 表情包动画效果 */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  40% {
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) translateY(-20px);
+  }
+}
+
+.emoji-tip {
+  animation: fadeInOut 5s forwards;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+/* 隐藏式圆角滑动栏 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0.4);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(136, 136, 136, 0.7);
+}
+
+/* 在深色模式下调整滚动条颜色 */
+body.dark-theme::-webkit-scrollbar-thumb {
+  background: rgba(170, 170, 170, 0.4);
+}
+
+body.dark-theme::-webkit-scrollbar-thumb:hover {
+  background: rgba(170, 170, 170, 0.7);
+}
+
+/* 隐藏滚动条，但保留滚动功能 */
+#notes-list, #note-editor, .backup-notes-list, #expanded-content, .dialog-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(136, 136, 136, 0.4) transparent;
+}
+
+/* 在鼠标悬停时才显示滚动条 */
+#notes-list::-webkit-scrollbar-thumb,
+#note-editor::-webkit-scrollbar-thumb,
+.backup-notes-list::-webkit-scrollbar-thumb,
+#expanded-content::-webkit-scrollbar-thumb,
+.dialog-content::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0);
+}
+
+#notes-list:hover::-webkit-scrollbar-thumb,
+#note-editor:hover::-webkit-scrollbar-thumb,
+.backup-notes-list:hover::-webkit-scrollbar-thumb,
+#expanded-content:hover::-webkit-scrollbar-thumb,
+.dialog-content:hover::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0.4);
+}
+
+/* 设置对话框样式 */
+.settings-dialog .dialog-content {
+  width: 400px; /* 稍微增加宽度 */
+}
+
+/* 设置项容器 */
+.settings-container {
+  margin-bottom: 10px;
+  padding-right: 5px; /* 为滚动条预留空间 */
+}
+
+/* 设置对话框按钮固定在底部 */
+.settings-dialog .dialog-buttons {
+  position: relative;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* 设置关闭按钮悬浮样式 */
+#settings-close-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2002;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  font-size: 30px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#settings-close-btn:hover {
+  background-color: var(--secondary-color);
+  transform: scale(1.1);
+}
+
+/* 赞助区域样式 */
+.sponsor-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed var(--border-color);
+  text-align: center;
+}
+
+.sponsor-btn {
+  background-color: #ff6b6b;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.sponsor-btn:hover {
+  background-color: #ff5252;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 107, 107, 0.3);
+}
+
+.contact-info {
+  font-size: 12px;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+/* 链接管理对话框样式 */
+.links-dialog .dialog-content {
+  width: 450px;
+  max-width: 90vw;
+}
+
+.links-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 15px 0;
+}
+
+.links-actions {
+  margin: 15px 0;
+  text-align: center;
+}
+
+.link-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 8px;
+  background-color: var(--item-bg);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.link-item:hover {
+  background-color: var(--item-hover-bg);
+}
+
+.link-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.link-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+}
+
+.link-info {
+  flex: 1;
+}
+
+.link-name {
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.link-url {
+  font-size: 12px;
+  color: var(--text-color);
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.link-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.link-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.link-action-btn:hover {
+  opacity: 1;
+}
+
+.link-edit-btn {
+  color: var(--primary-color);
+}
+
+.link-delete-btn {
+  color: var(--danger-color);
+}
+
+/* 表单组样式 */
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+}
+
+/* 图标选择器样式 */
+.icon-selector {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.icon-preview {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background-color: var(--item-bg);
+}
+
+.icon-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+}
+
+.icon-options {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* 表情选择器样式 */
+.emoji-picker {
+  margin-top: 10px;
+  margin-bottom: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px;
+  background-color: var(--item-bg);
+}
+
+.emoji-container {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.emoji-item {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.emoji-item:hover {
+  background-color: var(--item-hover-bg);
+  transform: scale(1.2);
+}
+
+/* 链接展示区样式 */
+.links-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: var(--item-bg);
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.link-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.link-shortcut:hover {
+  transform: translateY(-2px);
+}
+
+.link-shortcut-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.link-shortcut-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+}
+
+.link-shortcut-name {
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* 按钮位置设置样式 */
+.position-settings {
+  display: flex;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.position-option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.position-option input[type="radio"] {
+  cursor: pointer;
+}
+
+/* 按钮容器位置样式 */
+.buttons-left {
+  justify-content: flex-start;
+}
+
+.buttons-center {
+  justify-content: center;
+}
+
+.buttons-right {
+  justify-content: flex-end;
+}
+
+/* 背景调整相关样式 */
+#background-adjustments {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--item-bg);
+}
+
+#background-adjustments .slider-container {
+  margin-bottom: 10px;
+}
+
+#background-adjustments label {
+  display: inline-block;
+  width: 70px;
+  font-size: 14px;
+}
+
+#background-adjustments .slider {
+  width: calc(100% - 130px);
+}
+
+#bg-opacity-value, #bg-blur-value {
+  display: inline-block;
+  width: 50px;
+  text-align: right;
+  font-size: 14px;
+}
+
+/* 拖拽相关样式 */
+.note-item.dragging {
+  opacity: 0.7;
+  border-left-width: 5px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  cursor: grabbing;
+}
+
+[draggable="true"] {
+  cursor: grab;
+}
+
+/* 确保内容可选择 */
+#note-editor, #expanded-content {
+  user-select: text;
+}
+
+/* 背景层级相关样式 */
+.bg-container.above-content {
+  z-index: 5 !important; /* 当用户设置背景在内容之上时 */
+}
+
+/* 确保对话框始终在最上层 */
+.dialog {
+  z-index: 2000 !important; /* 确保对话框始终在最上层 */
+}
+
+/* 确保设置对话框内的滑块样式正确 */
+#bg-zindex-slider {
+  background: linear-gradient(to right, #ff6b6b, #4a69bd);
+}
+
+#bg-zindex-slider::-webkit-slider-thumb {
+  background: #4a69bd;
+  border: 2px solid white;
+}
+
+/* 为显示层级添加更明显的标签 */
+#bg-zindex-value {
+  font-weight: bold;
+  color: #4a69bd;
+}
+
+/* 分享按钮样式 */
+#share-btn {
+  margin-right: 5px;
+}
+
+/* 分享对话框样式 */
+.share-options {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+.share-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+  height: 80px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: var(--item-bg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.share-option:hover {
+  background-color: var(--item-hover-bg);
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.share-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.share-label {
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Toast提示样式 */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 3000;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* 添加按钮组样式，使分享和放大按钮并排显示 */
+.action-buttons-group {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+/* 修改action-button-small样式，移除margin-left: auto */
+.action-button-small {
+  padding: 5px 10px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Segoe MDL2 Assets', sans-serif;
+}
+
+/* 应用选择对话框样式 */
+.app-selection-dialog {
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.social-apps-section,
+.other-apps-section {
+  margin-bottom: 20px;
+}
+
+.social-apps-section h3,
+.other-apps-section h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.app-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background-color: var(--item-bg);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-item:hover {
+  background-color: var(--item-hover-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.app-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  font-size: 28px;
+}
+
+.app-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+}
+
+.app-name {
+  text-align: center;
+  font-size: 12px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-app-section {
+  margin: 15px 0;
+  text-align: center;
+}
+
+#browse-app-btn {
+  padding: 8px 15px;
+  width: 80%;
+  margin: 0 auto;
+}
+
+/* 适配暗色主题 */
+body.dark-theme .app-item {
+  background-color: var(--item-bg);
+}
+
+body.dark-theme .app-item:hover {
+  background-color: var(--item-hover-bg);
+}
+
+/* 添加在body中直接创建的对话框的样式 */
+body > .dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+/* 邮件分享对话框样式 */
+.email-share-dialog .dialog-content {
+  width: 400px;
+  max-width: 90vw;
+}
+
+#email-subject-input,
+#from-email-input,
+#to-email-input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+}
+
+#email-send-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* 标题颜色对话框样式 */
+.color-picker-container {
+  margin: 15px 0;
+}
+
+.preset-colors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.color-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: var(--text-color);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.custom-color {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.custom-color label {
+  margin-right: 10px;
+}
+
+#custom-title-color {
+  width: 40px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* 网站链接对话框样式 */
+.remember-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.remember-option .toggle-switch {
+  margin-right: 10px;
+}
+
+#web-link-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: var(--item-bg);
+  color: var(--text-color);
+  margin-bottom: 15px;
+}
+
+/* 添加颜色部分的样式 */
+.color-section {
+  margin-bottom: 15px;
+}
+
+.color-section h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: var(--text-color);
+}
+
+.color-picker-container {
+  margin-bottom: 15px;
+}
+
+.preset-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(35px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.color-option {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.color-option.selected {
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.custom-color {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.custom-color label {
+  margin-right: 10px;
+}
+
+#custom-title-color, #custom-bg-color {
+  width: 60px;
+  height: 30px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* 笔记项目背景颜色样式 */
+.note-item.custom-bg {
+  transition: background-color 0.3s ease;
+}
+
+/* 确保标题颜色对话框足够宽以适应新的内容 */
+#title-color-dialog .dialog-content {
+  width: 90%;
+  max-width: 420px;
+}
+
+/* 链接显示方式设置样式 */
+.links-display-settings {
+  display: flex;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+/* 右侧链接显示区样式 */
+.links-display.right-side {
+  position: fixed;
+  right: -200px; /* 默认隐藏 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  max-height: 80vh;
+  flex-direction: column;
+  background-color: var(--card-bg);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 10px 0 0 10px;
+  padding: 15px 10px;
+  transition: right 0.3s ease;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.links-display.right-side:hover,
+.links-display.right-side.active {
+  right: 0;
+}
+
+/* 触发区域 */
+.links-right-trigger {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 100px;
+  background-color: var(--primary-color);
+  opacity: 0.3;
+  border-radius: 5px 0 0 5px;
+  cursor: pointer;
+  z-index: 99;
+}
+
+.links-right-trigger:hover {
+  opacity: 0.6;
+}
+
+/* 底部链接显示区样式 */
+.links-display.bottom-side {
+  display: flex;
+  position: fixed;
+  left: calc(33% - 15px); /* 从左侧三分之一处开始 */
+  right: auto;
+  bottom: 15px; /* 定位到底部 */
+  top: auto; /* 移除顶部定位 */
+  transform: none;
+  width: auto;
+  max-width: calc(67% - 50px); /* 确保不会超出右侧边界 */
+  height: 45px; /* 增加高度 */
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.25); /* 增加透明度 */
+  backdrop-filter: blur(8px); /* 增强模糊效果 */
+  -webkit-backdrop-filter: blur(8px); /* Safari 支持 */
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 0 15px;
+  margin: 0;
+  z-index: 90;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  transition: all 0.3s ease; /* 添加过渡效果 */
+}
+
+/* 隐藏滚动条但允许滚动 */
+.links-display.bottom-side::-webkit-scrollbar {
+  display: none;
+}
+
+/* 暗色主题下的底部链接 */
+body.dark-theme .links-display.bottom-side {
+  background-color: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+}
+
+.button-container .links-display.bottom-side {
+  display: flex;
+}
+
+/* 底部链接显示区的图标和名称样式 */
+.links-display.bottom-side .link-shortcut-icon {
+  margin-bottom: 0;
+  margin-right: 6px;
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.links-display.bottom-side .link-shortcut-icon img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+}
+
+.links-display.bottom-side .link-shortcut-name {
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部模式下的链接快捷方式样式调整 */
+.links-display.bottom-side .link-shortcut {
+  flex-direction: row;
+  width: auto;
+  height: 35px;
+  align-items: center;
+  margin: 0 8px;
+  background-color: transparent;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--text-color);
+  transition: all 0.2s ease;
+}
+
+.links-display.bottom-side .link-shortcut:hover {
+  background-color: rgba(74, 105, 189, 0.2);
+  transform: translateY(-2px);
+}
+
+.links-display.bottom-side:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+.links-display.bottom-side .link-shortcut:hover {
+  background-color: rgba(74, 105, 189, 0.2);
+  transform: scale(1.05);
+}
+
+body.dark-theme .links-display.bottom-side .link-shortcut:hover {
+  background-color: rgba(92, 124, 220, 0.2);
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .links-display.bottom-side {
+    left: 15px;
+    max-width: calc(100% - 30px);
+    padding: 0 10px;
+  }
+  
+  .links-display.bottom-side .link-shortcut-name {
+    max-width: 60px;
+  }
+}
+
+.child-limit-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#unlimited-children-btn {
+  padding: 3px 8px;
+  font-size: 12px;
+  background-color: var(--secondary-color);
+}
+
+#unlimited-children-btn:hover {
+  background-color: var(--primary-color);
+}
+
+/* 子标题数量限制提示样式 */
+.children-limit-message {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+  padding: 5px 10px;
+  margin: 5px 0;
+  border-left: 2px solid #ccc;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+body.dark-theme .children-limit-message {
+  color: #aaa;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left-color: #555;
+}
+
+/* 笔记级别标志 */
+.level-badge {
+  display: inline-block;
+  font-size: 10px;
+  background-color: var(--secondary-color);
+  color: white;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.note-item.level-1 .level-badge {
+  background-color: var(--primary-color);
+}
+
+.note-item.level-2 .level-badge {
+  background-color: var(--secondary-color);
+}
+
+.note-item.level-3 .level-badge {
+  background-color: #e67e22;
+}
+
+.note-item.level-4 .level-badge {
+  background-color: #9b59b6;
+}
+
+.note-item.level-5 .level-badge {
+  background-color: #e74c3c;
+}
+
+.note-item.level-6 .level-badge {
+  background-color: #3498db;
+}
+
+.note-item.level-7 .level-badge {
+  background-color: #2ecc71;
+}
+
+body.dark-theme .level-badge {
+  opacity: 0.9;
+}
+
+/* 文档管理布局 */
+.document-management {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+/* 服务器配置表单样式 */
+#server-headers-input {
+  width: 100%;
+  height: 60px;
+  resize: vertical;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.checkbox-group {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.upload-progress {
+  margin-top: 10px;
+  width: 100%;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  width: 0%;
+  transition: width 0.3s;
+  text-align: center;
+  color: white;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.upload-status {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #666;
+}
+
+.upload-success {
+  color: #2ecc71;
+}
+
+.upload-error {
+  color: #e74c3c;
+}
+
+/* 添加文体快捷按钮样式 */
+.assist-buttons-wrapper {
+  position: relative;
+  display: flex;
+  margin: 8px 15px;
+  align-items: center;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.toggle-assist-btn {
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px 0 0 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 5;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.toggle-assist-btn:hover {
+  background-color: var(--secondary-color);
+}
+
+.assist-buttons-container {
+  display: flex;
+  padding: 0 10px;
+  background-color: var(--item-bg);
+  border-radius: 0 4px 4px 0;
+  gap: 5px;
+  max-height: 36px;
+  min-height: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transition: all 0.3s ease;
+  flex: 1;
+  scrollbar-width: none; /* 隐藏Firefox的滚动条 */
+  white-space: nowrap;
+  -ms-overflow-style: none; /* 隐藏IE和Edge的滚动条 */
+}
+
+/* 隐藏滚动条但保留滚动功能 */
+.assist-buttons-container::-webkit-scrollbar {
+  display: none; /* 隐藏WebKit浏览器的滚动条 */
+}
+
+.assist-buttons-container.collapsed {
+  max-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.assist-button {
+  padding: 5px 8px;
+  font-size: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.9;
+  margin: 4px 2px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.assist-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  opacity: 1;
+}
+
+/* 不同类型的文体按钮使用不同的颜色 */
+.assist-button.type-narrative {
+  background-color: #4a69bd; /* 叙事类 */
+}
+
+.assist-button.type-lyric {
+  background-color: #6a89cc; /* 抒情类 */
+}
+
+.assist-button.type-argument {
+  background-color: #e15f41; /* 议论类 */
+}
+
+.assist-button.type-official {
+  background-color: #3c6382; /* 公文类 */
+}
+
+.assist-button.type-certificate {
+  background-color: #38ada9; /* 证书类 */
+}
+
+.assist-button.type-ritual {
+  background-color: #7e349d; /* 仪式文书类 */
+}
+
+.assist-button.type-creative {
+  background-color: #b8e994; /* 创意类 */
+  color: #333;
+}
+
+/* 文体类型标记 */
+.genre-badge {
+  font-size: 0.8em;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 8px;
+  background-color: rgba(74, 105, 189, 0.1);
+  color: var(--primary-color);
+  display: inline-block;
+  vertical-align: middle;
+  font-weight: normal;
+  font-style: italic;
+}
+
+/* 在暗色模式下调整文体标记的样式 */
+body.dark-theme .genre-badge {
+  background-color: rgba(92, 124, 220, 0.2);
+  color: #8ca6e9;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .assist-buttons-container {
+    max-height: 120px;
+  }
+  
+  .assist-button {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+}
+
+/* 添加父级按钮样式 */
+.parent-btn {
+  margin-left: 0 !important;
+  margin-right: auto;
+  background-color: var(--secondary-color) !important;
+  color: white;
+  font-size: 13px;
+  padding: 6px 12px !important;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.parent-btn:hover {
+  background-color: var(--primary-color) !important;
+}
+
+.parent-btn.active {
+  background-color: var(--primary-color) !important;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+} 

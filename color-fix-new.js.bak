@@ -1,0 +1,660 @@
+// 颜色设置修复脚本
+const { ipcRenderer } = require('electron');
+
+// 控制台日志样式
+const consoleStyle = 'color: #2196F3; font-weight: bold;';
+
+// 在控制台显示日志
+function log(message) {
+  console.log(`%c[颜色修复] ${message}`, consoleStyle);
+}
+
+// 错误日志
+function error(message) {
+  console.error(`%c[颜色修复] ${message}`, 'color: #FF5252; font-weight: bold;');
+}
+
+// 初始化修复
+async function initColorFix() {
+  log('开始初始化颜色修复...');
+  
+  try {
+    // 确保所有DOM元素已加载
+    if (!document.getElementById('title-color-confirm-btn')) {
+      log('DOM元素尚未加载完成，延迟初始化...');
+      setTimeout(initColorFix, 1000);
+      return;
+    }
+    
+    // 修复标题颜色应用
+    patchTitleColorFunctions();
+    
+    // 修复背景颜色应用
+    patchBackgroundFunctions();
+    
+    // 监听颜色选择确认按钮事件
+    monitorColorConfirmButtons();
+    
+    // 修复文体类型颜色部分的显示
+    handleGenreColorSectionVisibility();
+    
+    // 强制更新列表颜色
+    setTimeout(() => {
+      if (typeof window.updateListColors === 'function') {
+        window.updateListColors();
+        log('初始化时强制更新列表颜色');
+      }
+    }, 2000);
+    
+    log('颜色修复初始化完成！');
+  } catch (err) {
+    error(`初始化失败: ${err.message}`);
+  }
+}
+
+// 处理文体类型颜色部分的显示隐藏
+function handleGenreColorSectionVisibility() {
+  log('设置文体类型颜色部分的显示逻辑...');
+  
+  try {
+    const genreColorSection = document.getElementById('genre-color-section');
+    if (!genreColorSection) {
+      error('找不到文体类型颜色部分的DOM元素');
+      return;
+    }
+    
+    // 原始函数的封装
+    const originalShowTitleColorDialog = window.showTitleColorDialog;
+    if (typeof originalShowTitleColorDialog !== 'function') {
+      error('找不到showTitleColorDialog函数');
+      return;
+    }
+    
+    // 重写showTitleColorDialog函数
+    window.showTitleColorDialog = async function() {
+      try {
+        // 调用原始函数
+        if (originalShowTitleColorDialog) {
+          originalShowTitleColorDialog.apply(this, arguments);
+        }
+        
+        // 检查当前打开的笔记是否有文体类型
+        if (window.currentNoteId) {
+          const note = await ipcRenderer.invoke('get-note', window.currentNoteId);
+          
+          // 确保文体类型颜色选择器可见
+          genreColorSection.style.display = 'block';
+          
+          if (note && note.metadata && note.metadata.genre) {
+            log('笔记包含文体类型，显示文体类型颜色部分');
+            
+            // 确保文体类型颜色被正确显示和应用
+            updateGenreColorDisplay(note.metadata.genre, note.metadata.genreColor);
+            
+            // 确保文体类型颜色选择器可以正常工作
+            setTimeout(() => {
+              // 重新绑定颜色选择器事件
+              const genreColorOptions = document.querySelectorAll('.genre-color-option');
+              genreColorOptions.forEach(option => {
+                // 移除现有事件监听器
+                const clone = option.cloneNode(true);
+                option.parentNode.replaceChild(clone, option);
+                
+                // 添加新的事件监听器
+                clone.addEventListener('click', function() {
+                  // 移除所有选中状态
+                  genreColorOptions.forEach(o => o.classList.remove('selected'));
+                  
+                  // 添加选中状态
+                  this.classList.add('selected');
+                  
+                  // 同步更新自定义颜色输入框
+                  const customGenreColor = document.getElementById('custom-genre-color');
+                  if (customGenreColor) {
+                    customGenreColor.value = this.dataset.color;
+                  }
+                  
+                  // 立即应用到显示
+                  const noteTitleElement = document.getElementById('note-title-display');
+                  if (noteTitleElement) {
+                    const genreBadge = noteTitleElement.querySelector('.genre-badge');
+                    if (genreBadge) {
+                      genreBadge.style.color = this.dataset.color;
+                      log(`实时预览文体类型颜色: ${this.dataset.color}`);
+                    }
+                  }
+                  
+                  log(`选择了文体类型颜色: ${this.dataset.color}`);
+                });
+              });
+              
+              // 监听自定义文体颜色输入
+              const customGenreColor = document.getElementById('custom-genre-color');
+              if (customGenreColor) {
+                // 移除现有事件监听器
+                const clone = customGenreColor.cloneNode(true);
+                customGenreColor.parentNode.replaceChild(clone, customGenreColor);
+                
+                // 添加新的事件监听器
+                clone.addEventListener('input', function() {
+                  // 移除所有选中状态
+                  document.querySelectorAll('.genre-color-option').forEach(o => {
+                    o.classList.remove('selected');
+                  });
+                  
+                  // 立即应用到显示
+                  const noteTitleElement = document.getElementById('note-title-display');
+                  if (noteTitleElement) {
+                    const genreBadge = noteTitleElement.querySelector('.genre-badge');
+                    if (genreBadge) {
+                      genreBadge.style.color = this.value;
+                      log(`实时预览自定义文体类型颜色: ${this.value}`);
+                    }
+                  }
+                });
+              }
+            }, 100);
+          } else {
+            log('笔记不包含文体类型，但仍显示文体类型颜色部分');
+          }
+        } else {
+          // 没有当前笔记ID，隐藏文体类型颜色部分
+          genreColorSection.style.display = 'none';
+          log('没有当前笔记ID，隐藏文体类型颜色部分');
+        }
+      } catch (err) {
+        error(`处理文体类型颜色部分显示时出错: ${err.message}`);
+        // 保守起见，隐藏文体类型颜色部分
+        genreColorSection.style.display = 'none';
+      }
+    };
+    
+    log('文体类型颜色部分显示逻辑设置完成');
+  } catch (err) {
+    error(`设置文体类型颜色部分显示逻辑失败: ${err.message}`);
+  }
+}
+
+// 更新文体类型颜色显示
+function updateGenreColorDisplay(genre, genreColor) {
+  try {
+    // 查找note-title-display中的genre-badge元素
+    const noteTitleElement = document.getElementById('note-title-display');
+    if (noteTitleElement) {
+      const genreBadge = noteTitleElement.querySelector('.genre-badge');
+      if (genreBadge && genreColor) {
+        genreBadge.style.color = genreColor;
+        log(`更新文体类型显示颜色: ${genreColor}`);
+      } else {
+        log('找不到文体类型标签元素，可能需要先加载笔记');
+      }
+    }
+    
+    // 如果有色块选择器，选择对应的颜色
+    if (genreColor) {
+      const genreColorOptions = document.querySelectorAll('.genre-color-option');
+      let found = false;
+      
+      genreColorOptions.forEach(option => {
+        if (option.dataset.color === genreColor) {
+          genreColorOptions.forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          found = true;
+        }
+      });
+      
+      // 如果没有找到匹配的预设颜色，使用自定义颜色输入
+      if (!found) {
+        const customGenreColor = document.getElementById('custom-genre-color');
+        if (customGenreColor) {
+          customGenreColor.value = genreColor;
+          genreColorOptions.forEach(o => o.classList.remove('selected'));
+        }
+      }
+    }
+  } catch (err) {
+    error(`更新文体类型颜色显示出错: ${err.message}`);
+  }
+}
+
+// 修复标题颜色函数
+function patchTitleColorFunctions() {
+  log('正在修补标题颜色功能...');
+  
+  try {
+    // 实现自己的applyTitleColor函数，不依赖原始函数
+    window.applyTitleColor = async function() {
+      log('应用标题颜色...');
+      
+      try {
+        // 获取选中的颜色值
+        const titleColorElement = document.querySelector('.title-color-option.selected');
+        const bgColorElement = document.querySelector('.bg-color-option.selected');
+        const genreColorElement = document.querySelector('.genre-color-option.selected');
+        const customTitleColor = document.getElementById('custom-title-color');
+        const customBgColor = document.getElementById('custom-bg-color');
+        const customGenreColor = document.getElementById('custom-genre-color');
+        
+        // 确定最终使用的颜色
+        let finalTitleColor = null;
+        let finalBgColor = null;
+        let finalGenreColor = null;
+        
+        // 优先使用全局变量中的颜色值（如果存在）
+        if (window.selectedTitleColor) {
+          finalTitleColor = window.selectedTitleColor;
+          log(`使用全局变量中的标题颜色: ${finalTitleColor}`);
+        } else if (titleColorElement) {
+          finalTitleColor = titleColorElement.dataset.color;
+          log(`使用预设标题颜色: ${finalTitleColor}`);
+        } else if (customTitleColor && customTitleColor.value) {
+          finalTitleColor = customTitleColor.value;
+          log(`使用自定义标题颜色: ${finalTitleColor}`);
+        }
+        
+        if (window.selectedBgColor) {
+          finalBgColor = window.selectedBgColor;
+          log(`使用全局变量中的背景颜色: ${finalBgColor}`);
+        } else if (bgColorElement) {
+          finalBgColor = bgColorElement.dataset.color;
+          log(`使用预设背景颜色: ${finalBgColor}`);
+        } else if (customBgColor && customBgColor.value) {
+          finalBgColor = customBgColor.value;
+          log(`使用自定义背景颜色: ${finalBgColor}`);
+        }
+        
+        if (window.selectedGenreColor) {
+          finalGenreColor = window.selectedGenreColor;
+          log(`使用全局变量中的文体类型颜色: ${finalGenreColor}`);
+        } else if (genreColorElement) {
+          finalGenreColor = genreColorElement.dataset.color;
+          log(`使用预设文体类型颜色: ${finalGenreColor}`);
+        } else if (customGenreColor && customGenreColor.value) {
+          finalGenreColor = customGenreColor.value;
+          log(`使用自定义文体类型颜色: ${finalGenreColor}`);
+        }
+        
+        // 如果没有选择任何颜色，则退出
+        if (finalTitleColor === null && finalBgColor === null && finalGenreColor === null) {
+          log('没有选择任何颜色，取消设置');
+          if (typeof window.hideTitleColorDialog === 'function') {
+            window.hideTitleColorDialog();
+          } else {
+            document.getElementById('title-color-dialog').classList.add('hidden');
+          }
+          return;
+        }
+        
+        // 确保有当前笔记ID
+        const currentNoteId = window.currentNoteId;
+        if (!currentNoteId) {
+          error('没有当前笔记ID，无法应用颜色');
+          if (typeof window.hideTitleColorDialog === 'function') {
+            window.hideTitleColorDialog();
+          } else {
+            document.getElementById('title-color-dialog').classList.add('hidden');
+          }
+          return;
+        }
+        
+        // 获取笔记数据
+        const note = await ipcRenderer.invoke('get-note', currentNoteId);
+        if (!note) {
+          error('获取笔记数据失败');
+          return;
+        }
+        
+        // 检查笔记是否有内容
+        const hasContent = note.content && note.content.trim() !== '';
+        
+        log(`为笔记"${note.title}"设置颜色：标题颜色=${finalTitleColor}，背景颜色=${finalBgColor}，文体类型颜色=${finalGenreColor}`);
+        
+        // 更新笔记元数据
+        const updatedMetadata = note.metadata || {};
+        
+        // 只在笔记有内容且选择了标题颜色时更新标题颜色
+        if (finalTitleColor !== null && hasContent) {
+          updatedMetadata.titleColor = finalTitleColor;
+        }
+        
+        // 只在选择了背景颜色时更新背景颜色
+        if (finalBgColor !== null) {
+          updatedMetadata.bgColor = finalBgColor;
+        }
+        
+        // 只在选择了文体类型颜色时更新文体类型颜色
+        if (finalGenreColor !== null) {
+          updatedMetadata.genreColor = finalGenreColor;
+          log(`保存文体类型颜色到元数据: ${finalGenreColor}`);
+          
+          // 如果没有文体类型，但设置了文体类型颜色，尝试从标题中提取文体类型
+          if (!updatedMetadata.genre && note.title && note.title.includes('  ')) {
+            const parts = note.title.split('  ');
+            if (parts.length > 1) {
+              updatedMetadata.genre = parts[1];
+              log(`从标题提取文体类型: ${updatedMetadata.genre}`);
+            }
+          }
+        }
+        
+        // 保存更新后的元数据
+        await ipcRenderer.invoke('update-note-metadata', currentNoteId, updatedMetadata);
+        log('已保存更新的笔记元数据');
+        
+        // 更新标题颜色 - 只在笔记有内容且选择了标题颜色时应用
+        const noteTitleElement = document.getElementById('note-title-display');
+        if (noteTitleElement && finalTitleColor !== null && hasContent) {
+          // 保存文体类型标签的颜色
+          const genreBadge = noteTitleElement.querySelector('.genre-badge');
+          const genreBadgeColor = genreBadge ? genreBadge.style.color : null;
+          
+          // 应用标题颜色
+          noteTitleElement.style.color = finalTitleColor;
+          log('已应用标题颜色到编辑器DOM (笔记有内容)');
+          
+          // 恢复文体类型标签的颜色
+          if (genreBadge && (genreBadgeColor || finalGenreColor)) {
+            genreBadge.style.color = finalGenreColor || genreBadgeColor;
+          }
+        } else if (finalTitleColor !== null && !hasContent) {
+          log('笔记没有内容，不应用标题颜色');
+        }
+        
+        // 更新笔记列表中对应项的颜色
+        const noteItem = document.querySelector(`.note-item[data-id="${currentNoteId}"]`);
+        if (noteItem) {
+          // 更新背景颜色
+          if (finalBgColor !== null) {
+            noteItem.style.backgroundColor = finalBgColor;
+            noteItem.classList.add('custom-bg');
+            log('已应用背景颜色到列表DOM');
+          }
+          
+          // 更新标题颜色 - 只在笔记有内容且选择了标题颜色时应用
+          if (finalTitleColor !== null && hasContent) {
+            const titleElement = noteItem.querySelector('.note-title-text');
+            if (titleElement) {
+              // 保存文体类型标签的颜色
+              const genreBadge = titleElement.querySelector('.genre-badge');
+              const genreBadgeColor = genreBadge ? genreBadge.style.color : null;
+              
+              // 应用标题颜色
+              titleElement.style.color = finalTitleColor;
+              log('已应用标题颜色到列表DOM');
+              
+              // 恢复文体类型标签的颜色
+              if (genreBadge && (genreBadgeColor || finalGenreColor)) {
+                genreBadge.style.color = finalGenreColor || genreBadgeColor;
+              }
+            }
+          }
+          
+          // 更新文体类型颜色 - 只在选择了文体类型颜色时应用
+          if (finalGenreColor !== null) {
+            const titleElement = noteItem.querySelector('.note-title-text');
+            if (titleElement) {
+              const genreBadge = titleElement.querySelector('.genre-badge');
+              if (genreBadge) {
+                genreBadge.style.color = finalGenreColor;
+                log('已应用文体类型颜色到列表DOM');
+              }
+            }
+          }
+        }
+        
+        // 隐藏对话框
+        if (typeof window.hideTitleColorDialog === 'function') {
+          window.hideTitleColorDialog();
+        } else {
+          document.getElementById('title-color-dialog').classList.add('hidden');
+        }
+        
+        // 触发更新事件
+        document.dispatchEvent(new CustomEvent('noteColorUpdated', { 
+          detail: { 
+            noteId: currentNoteId,
+            titleColor: finalTitleColor,
+            bgColor: finalBgColor,
+            genreColor: finalGenreColor,
+            hasContent: hasContent
+          } 
+        }));
+        
+        // 强制刷新列表中的颜色
+        if (typeof window.updateListColors === 'function') {
+          // 延迟执行，确保元数据已保存
+          setTimeout(() => {
+            window.updateListColors();
+            log('已强制刷新列表颜色');
+          }, 300);
+        }
+        
+        log('颜色应用完成');
+      } catch (err) {
+        error(`应用颜色时出错: ${err.message}`);
+      }
+    };
+    
+    // 添加函数来源标记
+    window.applyTitleColor.source = 'color-fix-new.js';
+    
+    log('标题颜色功能修补完成');
+  } catch (err) {
+    error(`修补标题颜色功能失败: ${err.message}`);
+  }
+}
+
+// 修复背景颜色函数
+function patchBackgroundFunctions() {
+  log('正在修补背景颜色功能...');
+  
+  try {
+    // 重写updateBackgroundSettings函数
+    window.updateBackgroundSettings = async function() {
+      log('更新背景设置...');
+      
+      try {
+        // 获取当前设置
+        const settings = await ipcRenderer.invoke('get-settings');
+        
+        // 更新透明度、模糊度和显示层级设置
+        const bgOpacitySlider = document.getElementById('bg-opacity-slider');
+        const bgBlurSlider = document.getElementById('bg-blur-slider');
+        const bgZindexSlider = document.getElementById('bg-zindex-slider');
+        
+        if (bgOpacitySlider && bgBlurSlider && bgZindexSlider) {
+          settings.background.opacity = parseInt(bgOpacitySlider.value);
+          settings.background.blur = parseInt(bgBlurSlider.value);
+          settings.background.zIndex = parseInt(bgZindexSlider.value);
+          
+          log(`背景设置: 类型=${settings.background.type}, 值=${settings.background.value}, 透明度=${settings.background.opacity}, 模糊=${settings.background.blur}, Z轴=${settings.background.zIndex}`);
+        } else {
+          log('找不到背景设置滑块元素');
+        }
+        
+        // 保存设置到主进程
+        log('正在保存背景设置到存储...');
+        await ipcRenderer.invoke('update-settings', settings);
+        
+        // 重新实现applyBackground功能，以防原始函数不存在
+        const applyBg = () => {
+          const bgContainer = document.querySelector('.bg-container');
+          if (!bgContainer) {
+            log('创建背景容器元素');
+            const newBgContainer = document.createElement('div');
+            newBgContainer.className = 'bg-container';
+            document.body.appendChild(newBgContainer);
+            applyBgSettings(newBgContainer, settings.background);
+          } else {
+            log('应用背景设置到现有背景容器');
+            applyBgSettings(bgContainer, settings.background);
+          }
+        };
+        
+        if (typeof window.applyBackground === 'function') {
+          window.applyBackground(settings.background);
+          log('使用原始applyBackground函数应用背景设置');
+        } else {
+          applyBg();
+          log('使用自定义实现应用背景设置');
+        }
+        
+        if (typeof window.showToast === 'function') {
+          window.showToast('背景设置已更新');
+        } else {
+          log('背景设置已更新');
+        }
+      } catch (err) {
+        error(`更新背景设置时出错: ${err.message}`);
+        if (typeof window.showToast === 'function') {
+          window.showToast('更新背景设置失败，请查看控制台');
+        }
+      }
+    };
+    
+    // 支持背景颜色更新
+    window.updateBackgroundColor = function() {
+      log('更新背景颜色...');
+      
+      try {
+        const backgroundColorInput = document.getElementById('background-color');
+        if (backgroundColorInput) {
+          ipcRenderer.invoke('get-settings').then(settings => {
+            settings.background.value = backgroundColorInput.value;
+            settings.background.type = 'color';
+            
+            log(`设置背景颜色: ${backgroundColorInput.value}`);
+            
+            ipcRenderer.invoke('update-settings', settings).then(() => {
+              if (typeof window.updateBackgroundSettings === 'function') {
+                window.updateBackgroundSettings();
+              }
+            }).catch(err => {
+              error(`保存背景颜色设置时出错: ${err.message}`);
+            });
+          }).catch(err => {
+            error(`获取设置时出错: ${err.message}`);
+          });
+        } else {
+          error('找不到背景颜色输入元素');
+        }
+      } catch (err) {
+        error(`更新背景颜色时出错: ${err.message}`);
+      }
+    };
+    
+    log('背景颜色功能修补完成');
+  } catch (err) {
+    error(`修补背景颜色功能失败: ${err.message}`);
+  }
+}
+
+// 应用背景设置到DOM
+function applyBgSettings(container, settings) {
+  // 移除所有背景相关样式
+  container.style.backgroundImage = '';
+  container.style.backgroundColor = '';
+  container.style.opacity = '';
+  container.style.backdropFilter = '';
+  container.style.webkitBackdropFilter = '';
+  container.style.filter = '';
+  
+  // 移除可能存在的类名
+  container.classList.remove('above-content');
+  
+  // 根据设置应用背景
+  if (settings.type === 'none') {
+    container.style.display = 'none';
+    return;
+  }
+  
+  container.style.display = 'block';
+  
+  // 设置透明度
+  const opacity = settings.opacity !== undefined ? settings.opacity / 100 : 1;
+  container.style.opacity = opacity;
+  
+  // 设置模糊度
+  const blur = settings.blur !== undefined ? settings.blur : 0;
+  if (blur > 0) {
+    container.style.filter = `blur(${blur}px)`;
+  }
+  
+  // 设置显示层级
+  const zIndex = settings.zIndex !== undefined ? settings.zIndex : -1;
+  container.style.zIndex = zIndex;
+  
+  // 如果层级大于0，添加above-content类
+  if (zIndex > 0) {
+    container.classList.add('above-content');
+  }
+  
+  if (settings.type === 'color' && settings.value) {
+    container.style.backgroundColor = settings.value;
+  } else if (settings.type === 'image' && settings.value) {
+    let imagePath = settings.value;
+    
+    if (!imagePath.startsWith('file:///') && !imagePath.startsWith('http')) {
+      if (process.platform === 'win32') {
+        imagePath = 'file:///' + imagePath.replace(/\\/g, '/');
+      } else {
+        imagePath = 'file://' + imagePath;
+      }
+    }
+    
+    // 首先尝试加载图片
+    const testImg = new Image();
+    testImg.onload = () => {
+      container.style.backgroundImage = `url("${imagePath}")`;
+      log(`成功加载背景图片: ${imagePath}`);
+    };
+    testImg.onerror = () => {
+      error(`加载背景图片失败: ${imagePath}，尝试使用相对路径`);
+      // 尝试使用相对路径
+      container.style.backgroundImage = `url("${settings.value}")`;
+    };
+    testImg.src = imagePath;
+  } else if (settings.type === 'url' && settings.value) {
+    container.style.backgroundImage = `url("${settings.value}")`;
+  }
+}
+
+// 监听颜色确认按钮
+function monitorColorConfirmButtons() {
+  log('颜色确认按钮监听已被color-selector-fix.js接管，此函数不再执行事件绑定');
+  
+  // 不再执行事件绑定，由color-selector-fix.js统一处理
+  if (window._colorFixEventListenersInitialized) {
+    log('事件监听器已经初始化，跳过');
+    return;
+  }
+  
+  // 标记为已初始化，避免重复设置
+  window._colorFixEventListenersInitialized = true;
+}
+
+// 检查脚本是否已经加载
+if (window._colorFixLoaded) {
+  log('颜色修复脚本已经加载，重新初始化...');
+  // 强制重新初始化
+  initColorFix();
+} else {
+  // 标记脚本已加载
+  window._colorFixLoaded = true;
+  
+  // 立即初始化（DOM可能已经加载）
+  initColorFix();
+  
+  // 同时在DOMContentLoaded事件上也初始化一次，以防DOM尚未加载
+  document.addEventListener('DOMContentLoaded', () => {
+    // 延迟一段时间确保主程序已加载完成
+    setTimeout(initColorFix, 1000);
+  });
+  
+  // 在窗口加载完成后再次尝试初始化，确保所有DOM都加载完成
+  window.addEventListener('load', () => {
+    setTimeout(initColorFix, 1500);
+  });
+  
+  log('颜色修复脚本初始化完成！');
+} 

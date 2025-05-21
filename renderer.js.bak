@@ -1,0 +1,3722 @@
+const { ipcRenderer } = require('electron');
+
+// 生成UUID的函数
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// 获取DOM元素
+const notesList = document.getElementById('notes-list');
+const notesListContainer = document.getElementById('notes-list-container');
+const noteContentContainer = document.getElementById('note-content-container');
+const noteEditor = document.getElementById('note-editor');
+const noteTitleDisplay = document.getElementById('note-title-display');
+const addNoteBtn = document.getElementById('add-note-btn');
+const backBtn = document.getElementById('back-btn');
+const addNoteDialog = document.getElementById('add-note-dialog');
+const addDialogTitle = document.getElementById('add-dialog-title');
+const noteTitleInput = document.getElementById('note-title-input');
+const cancelBtn = document.getElementById('cancel-btn');
+const confirmBtn = document.getElementById('confirm-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsDialog = document.getElementById('settings-dialog');
+const settingsCloseBtn = document.getElementById('settings-close-btn');
+const lightThemeBtn = document.getElementById('light-theme-btn');
+const darkThemeBtn = document.getElementById('dark-theme-btn');
+const foldTitlesToggle = document.getElementById('fold-titles-toggle');
+const opacitySlider = document.getElementById('opacity-slider');
+const opacityValue = document.getElementById('opacity-value');
+
+// 新增标题层级和子级数量限制相关元素
+const maxLevelSlider = document.getElementById('max-level-slider');
+const maxLevelValue = document.getElementById('max-level-value');
+const maxChildrenSlider = document.getElementById('max-children-slider');
+const maxChildrenValue = document.getElementById('max-children-value');
+const unlimitedChildrenBtn = document.getElementById('unlimited-children-btn');
+
+// 标题栏控制按钮
+const minimizeBtn = document.getElementById('minimize-btn');
+const maximizeBtn = document.getElementById('maximize-btn');
+const closeBtn = document.getElementById('close-btn');
+
+// 确认对话框元素
+const confirmDialog = document.getElementById('confirm-dialog');
+const confirmMessage = document.getElementById('confirm-message');
+const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+const confirmOkBtn = document.getElementById('confirm-ok-btn');
+
+// 富文本工具栏
+const formatButtons = document.querySelectorAll('.format-btn');
+const fontSizeSelect = document.querySelector('.font-size');
+const textColorInput = document.getElementById('text-color');
+
+// 放大模式
+const expandBtn = document.getElementById('expand-btn');
+const expandedContainer = document.getElementById('expanded-container');
+const expandedContent = document.getElementById('expanded-content');
+const collapseBtn = document.getElementById('collapse-btn');
+
+// 背景设置相关元素
+const backgroundTypeRadios = document.querySelectorAll('input[name="background-type"]');
+const backgroundColorContainer = document.getElementById('background-color-container');
+const backgroundImageContainer = document.getElementById('background-image-container');
+const backgroundUrlContainer = document.getElementById('background-url-container');
+const backgroundColorInput = document.getElementById('background-color');
+const chooseBackgroundImageButton = document.getElementById('choose-background-image');
+const selectedImageName = document.getElementById('selected-image-name');
+const backgroundUrlInput = document.getElementById('background-url');
+
+// 备份相关元素
+const backupNotesBtn = document.getElementById('backup-notes-btn');
+const backupNotesDialog = document.getElementById('backup-notes-dialog');
+const backupNotesList = document.getElementById('backup-notes-list');
+const backupCancelBtn = document.getElementById('backup-cancel-btn');
+const backupConfirmBtn = document.getElementById('backup-confirm-btn');
+const backupPathDialog = document.getElementById('backup-path-dialog');
+const backupPathInput = document.getElementById('backup-path-input');
+const chooseBackupPathBtn = document.getElementById('choose-backup-path-btn');
+const autoSyncToggle = document.getElementById('auto-sync-toggle');
+const backupPathCancelBtn = document.getElementById('backup-path-cancel-btn');
+const backupPathConfirmBtn = document.getElementById('backup-path-confirm-btn');
+
+// 添加表情包提示相关元素
+const emojiTipsToggle = document.getElementById('emoji-tips-toggle');
+
+// 添加赞助按钮
+const sponsorBtn = document.getElementById('sponsor-btn');
+
+// 添加链接管理相关元素
+const linksBtn = document.getElementById('links-btn');
+const linksDialog = document.getElementById('links-dialog');
+const linksCloseBtn = document.getElementById('links-close-btn');
+const linksList = document.getElementById('links-list');
+const addLinkBtn = document.getElementById('add-link-btn');
+const editLinkDialog = document.getElementById('edit-link-dialog');
+const editLinkTitle = document.getElementById('edit-link-title');
+const linkNameInput = document.getElementById('link-name-input');
+const linkUrlInput = document.getElementById('link-url-input');
+const iconPreview = document.getElementById('icon-preview');
+const chooseEmojiBtn = document.getElementById('choose-emoji-btn');
+const chooseIconImageBtn = document.getElementById('choose-icon-image-btn');
+const emojiPicker = document.getElementById('emoji-picker');
+const editLinkCancelBtn = document.getElementById('edit-link-cancel-btn');
+const editLinkConfirmBtn = document.getElementById('edit-link-confirm-btn');
+const linksDisplay = document.getElementById('links-display');
+
+// 添加按钮位置相关元素
+const buttonContainer = document.querySelector('.button-container');
+const positionLeftRadio = document.getElementById('position-left');
+const positionCenterRadio = document.getElementById('position-center');
+const positionRightRadio = document.getElementById('position-right');
+
+// 添加背景透明度和模糊度相关元素
+const backgroundAdjustments = document.getElementById('background-adjustments');
+const bgOpacitySlider = document.getElementById('bg-opacity-slider');
+const bgOpacityValue = document.getElementById('bg-opacity-value');
+const bgBlurSlider = document.getElementById('bg-blur-slider');
+const bgBlurValue = document.getElementById('bg-blur-value');
+const bgZindexSlider = document.getElementById('bg-zindex-slider');
+const bgZindexValue = document.getElementById('bg-zindex-value');
+
+// 当前状态
+let currentNoteId = null;
+let currentNoteType = null;
+let selectedOutlineId = null;
+let selectedNoteLevel = 1; // 添加选中笔记层级变量
+let selectedNoteType = null; // 添加选中笔记类型变量
+let isAddingSubnote = false;
+let settings = {
+  theme: 'light',
+  foldTitles: false,
+  opacity: 100,
+  maxLevel: 5, // 添加最大层级限制，默认5级
+  maxChildren: 0, // 添加最大子级数量限制，0表示无限制
+  background: {
+    type: 'none',
+    value: '',
+    opacity: 100,
+    blur: 0,
+    zIndex: -1 // 添加显示层级默认值
+  },
+  backups: [],
+  emojiTips: false, // 添加表情包提示设置
+  links: [], // 添加链接数组
+  buttonPosition: 'left', // 添加按钮位置设置
+  linksDisplayPosition: 'default' // 添加链接显示位置设置
+};
+
+// 选中的笔记ID（用于备份）
+let selectedBackupNotes = [];
+
+// 链接管理相关变量
+let currentEditingLinkId = null;
+let selectedIconType = 'emoji';
+let selectedIconValue = '🔗';
+
+// 分享相关元素
+const shareBtn = document.getElementById('share-btn');
+const shareDialog = document.getElementById('share-dialog');
+const shareOptions = document.querySelectorAll('.share-option');
+const shareCancelBtn = document.getElementById('share-cancel-btn');
+
+// 添加邮件分享对话框元素
+const emailShareDialog = document.getElementById('email-share-dialog');
+const fromEmailInput = document.getElementById('from-email-input');
+const toEmailInput = document.getElementById('to-email-input');
+const emailSubjectInput = document.getElementById('email-subject-input');
+const emailCancelBtn = document.getElementById('email-cancel-btn');
+const emailSendBtn = document.getElementById('email-send-btn');
+
+// 添加应用选择对话框元素
+const appSelectDialog = document.getElementById('app-select-dialog');
+const socialAppsContainer = document.getElementById('social-apps');
+const otherAppsContainer = document.getElementById('other-apps');
+const browseAppBtn = document.getElementById('browse-app-btn');
+const appSelectCancelBtn = document.getElementById('app-select-cancel-btn');
+
+// 添加标题颜色和网站链接对话框元素
+const titleColorBtn = document.getElementById('title-color-btn');
+const titleColorDialog = document.getElementById('title-color-dialog');
+const titleColorOptions = document.querySelectorAll('.title-color-option');  // 修改选择器
+const bgColorOptions = document.querySelectorAll('.bg-color-option');  // 添加背景颜色选择器
+const customTitleColor = document.getElementById('custom-title-color');
+const customBgColor = document.getElementById('custom-bg-color');  // 添加自定义背景颜色输入
+const titleColorCancelBtn = document.getElementById('title-color-cancel-btn');
+const titleColorConfirmBtn = document.getElementById('title-color-confirm-btn');
+
+const webLinkDialog = document.getElementById('web-link-dialog');
+const webLinkTitle = document.getElementById('web-link-title');
+const webLinkInput = document.getElementById('web-link-input');
+const rememberLinkToggle = document.getElementById('remember-link-toggle');
+const webLinkCancelBtn = document.getElementById('web-link-cancel-btn');
+const webLinkConfirmBtn = document.getElementById('web-link-confirm-btn');
+
+// 当前选中的颜色和应用
+let selectedTitleColor = '';
+let selectedAppForLink = null;
+let selectedBgColor = '';  // 添加背景颜色变量
+
+// 初始化应用
+async function initApp() {
+  console.log('初始化应用...');
+  
+  // 创建背景容器（最优先）
+  createBackgroundContainer();
+  
+  // 加载设置
+  await loadSettings();
+  // 加载笔记
+  await loadNotes();
+  
+  // 事件监听
+  addNoteBtn.addEventListener('click', handleAddButtonClick);
+  backBtn.addEventListener('click', showNotesList);
+  cancelBtn.addEventListener('click', hideAddNoteDialog);
+  confirmBtn.addEventListener('click', handleConfirmAdd);
+  
+  // 分享功能相关事件
+  shareBtn.addEventListener('click', showShareDialog);
+  shareCancelBtn.addEventListener('click', hideShareDialog);
+  shareOptions.forEach(option => {
+    option.addEventListener('click', handleShareOption);
+  });
+  
+  // 添加笔记拖拽导出功能
+  setupNoteDragExport();
+  
+  // 链接管理相关事件
+  linksBtn.addEventListener('click', showLinksDialog);
+  linksCloseBtn.addEventListener('click', hideLinksDialog);
+  addLinkBtn.addEventListener('click', showAddLinkDialog);
+  editLinkCancelBtn.addEventListener('click', hideEditLinkDialog);
+  editLinkConfirmBtn.addEventListener('click', saveLink);
+  chooseEmojiBtn.addEventListener('click', toggleEmojiPicker);
+  chooseIconImageBtn.addEventListener('click', chooseIconImage);
+  
+  // 初始化链接显示区
+  if (settings.links && settings.links.length > 0) {
+    // 首先应用位置设置
+    applyLinksDisplayPosition(settings.linksDisplayPosition || 'default');
+    // 然后渲染链接
+    renderLinksDisplay();
+    linksDisplay.classList.remove('hidden');
+  }
+  
+  // 设置相关事件
+  settingsBtn.addEventListener('click', showSettingsDialog);
+  settingsCloseBtn.addEventListener('click', hideSettingsDialog);
+  lightThemeBtn.addEventListener('click', () => changeTheme('light'));
+  darkThemeBtn.addEventListener('click', () => changeTheme('dark'));
+  foldTitlesToggle.addEventListener('change', toggleFoldTitles);
+  
+  // 标题层级和子级数量限制相关事件
+  if (maxLevelSlider) {
+    maxLevelSlider.addEventListener('input', updateMaxLevelPreview);
+    maxLevelSlider.addEventListener('change', changeMaxLevel);
+  }
+  
+  if (maxChildrenSlider) {
+    maxChildrenSlider.addEventListener('input', updateMaxChildrenPreview);
+    maxChildrenSlider.addEventListener('change', changeMaxChildren);
+  }
+  
+  // 按钮位置相关事件
+  if (positionLeftRadio) {
+    positionLeftRadio.addEventListener('change', () => {
+      if (positionLeftRadio.checked) {
+        toggleButtonPosition('left');
+      }
+    });
+  }
+  
+  if (positionCenterRadio) {
+    positionCenterRadio.addEventListener('change', () => {
+      if (positionCenterRadio.checked) {
+        toggleButtonPosition('center');
+      }
+    });
+  }
+  
+  if (positionRightRadio) {
+    positionRightRadio.addEventListener('change', () => {
+      if (positionRightRadio.checked) {
+        toggleButtonPosition('right');
+      }
+    });
+  }
+  
+  // 链接显示位置相关事件
+  if (linksPositionDefaultRadio) {
+    linksPositionDefaultRadio.addEventListener('change', () => {
+      if (linksPositionDefaultRadio.checked) {
+        toggleLinksDisplayPosition('default');
+      }
+    });
+  }
+  
+  if (linksPositionRightRadio) {
+    linksPositionRightRadio.addEventListener('change', () => {
+      if (linksPositionRightRadio.checked) {
+        toggleLinksDisplayPosition('right');
+      }
+    });
+  }
+  
+  if (linksPositionBottomRadio) {
+    linksPositionBottomRadio.addEventListener('change', () => {
+      if (linksPositionBottomRadio.checked) {
+        toggleLinksDisplayPosition('bottom');
+      }
+    });
+  }
+  
+  // 右侧链接触发器点击事件
+  if (linksRightTrigger) {
+    linksRightTrigger.addEventListener('click', function() {
+      linksDisplay.classList.add('active');
+      // 5秒后自动移除active状态
+      setTimeout(() => {
+        linksDisplay.classList.remove('active');
+      }, 5000);
+    });
+  }
+  
+  // 赞助按钮点击事件
+  if (sponsorBtn) {
+    sponsorBtn.addEventListener('click', () => {
+      // 使用Electron的shell模块打开外部链接
+      ipcRenderer.invoke('open-external-link', 'https://afdian.com/a/xieshuoxing');
+    });
+  }
+  
+  // 表情包提示相关事件
+  if (emojiTipsToggle) {
+    emojiTipsToggle.addEventListener('change', toggleEmojiTips);
+  }
+  
+  // 备份相关事件
+  backupNotesBtn.addEventListener('click', showBackupNotesDialog);
+  backupCancelBtn.addEventListener('click', hideBackupNotesDialog);
+  backupConfirmBtn.addEventListener('click', showBackupPathDialog);
+  chooseBackupPathBtn.addEventListener('click', chooseBackupPath);
+  backupPathInput.addEventListener('click', chooseBackupPath);
+  backupPathCancelBtn.addEventListener('click', hideBackupPathDialog);
+  backupPathConfirmBtn.addEventListener('click', executeBackup);
+  
+  // 透明度调节
+  opacitySlider.addEventListener('input', updateOpacityPreview);
+  opacitySlider.addEventListener('change', changeOpacity);
+  
+  // 标题栏控制
+  minimizeBtn.addEventListener('click', () => {
+    ipcRenderer.invoke('window-control', 'minimize');
+  });
+  
+  maximizeBtn.addEventListener('click', () => {
+    ipcRenderer.invoke('window-control', 'maximize');
+  });
+  
+  closeBtn.addEventListener('click', () => {
+    ipcRenderer.invoke('window-control', 'close');
+  });
+  
+  // 确认对话框
+  confirmCancelBtn.addEventListener('click', hideConfirmDialog);
+  
+  // 富文本工具栏
+  formatButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const command = button.dataset.command;
+      document.execCommand(command, false, null);
+      updateToolbarState();
+      noteEditor.focus();
+    });
+  });
+  
+  fontSizeSelect.addEventListener('change', () => {
+    document.execCommand('fontSize', false, fontSizeSelect.value);
+    noteEditor.focus();
+  });
+  
+  textColorInput.addEventListener('input', () => {
+    document.execCommand('foreColor', false, textColorInput.value);
+    noteEditor.focus();
+  });
+  
+  // 放大模式
+  expandBtn.addEventListener('click', expandEditor);
+  collapseBtn.addEventListener('click', collapseEditor);
+  
+  // 选择文本时更新工具栏状态
+  noteEditor.addEventListener('mouseup', updateToolbarState);
+  noteEditor.addEventListener('keyup', updateToolbarState);
+  
+  // 编辑器内容变更时保存
+  noteEditor.addEventListener('input', debounce(saveNoteContent, 500));
+  expandedContent.addEventListener('input', debounce(saveExpandedContent, 500));
+  
+  // 支持图片拖拽
+  noteEditor.addEventListener('dragover', handleDragOver);
+  noteEditor.addEventListener('drop', handleDrop);
+  expandedContent.addEventListener('dragover', handleDragOver);
+  expandedContent.addEventListener('drop', handleDrop);
+  
+  // 键盘快捷键
+  noteTitleInput.addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+      handleConfirmAdd();
+    } else if (event.key === 'Escape') {
+      hideAddNoteDialog();
+    }
+  });
+  
+  // 背景设置相关事件
+  backgroundTypeRadios.forEach(radio => {
+    radio.addEventListener('change', toggleBackgroundOptions);
+  });
+  
+  backgroundColorInput.addEventListener('change', updateBackgroundColor);
+  chooseBackgroundImageButton.addEventListener('click', chooseBackgroundImage);
+  backgroundUrlInput.addEventListener('input', debounce(updateBackgroundUrl, 500));
+  
+  // 添加背景透明度和模糊度控制
+  bgOpacitySlider.addEventListener('input', updateBgOpacityPreview);
+  bgOpacitySlider.addEventListener('change', updateBackgroundSettings);
+  bgBlurSlider.addEventListener('input', updateBgBlurPreview);
+  bgBlurSlider.addEventListener('change', updateBackgroundSettings);
+  bgZindexSlider.addEventListener('input', updateBgZindexPreview);
+  bgZindexSlider.addEventListener('change', updateBackgroundSettings);
+  
+  // 如果启用了表情包提示，添加点击事件监听
+  if (settings.emojiTips) {
+    document.body.addEventListener('click', showRandomEmoji);
+  }
+  
+  // 邮件分享相关事件
+  emailCancelBtn.addEventListener('click', hideEmailShareDialog);
+  emailSendBtn.addEventListener('click', sendEmailShare);
+  
+  // 应用选择对话框相关事件
+  appSelectCancelBtn.addEventListener('click', hideAppSelectDialog);
+  browseAppBtn.addEventListener('click', openSystemAppPicker);
+  
+  // 标题颜色和网站链接相关事件
+  titleColorBtn.addEventListener('click', showTitleColorDialog);
+  titleColorCancelBtn.addEventListener('click', hideTitleColorDialog);
+  titleColorConfirmBtn.addEventListener('click', applyTitleColor);
+  
+  titleColorOptions.forEach(option => {
+    option.onclick = () => {
+      titleColorOptions.forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+      selectedTitleColor = option.dataset.color;
+      customTitleColor.value = selectedTitleColor;
+    };
+  });
+  
+  bgColorOptions.forEach(option => {
+    option.onclick = () => {
+      bgColorOptions.forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+      selectedBgColor = option.dataset.color;
+      customBgColor.value = selectedBgColor;
+    };
+  });
+  
+  // 自定义颜色输入事件
+  customTitleColor.oninput = () => {
+    selectedTitleColor = customTitleColor.value;
+    titleColorOptions.forEach(option => {
+      option.classList.remove('selected');
+      if (option.dataset.color.toLowerCase() === selectedTitleColor.toLowerCase()) {
+        option.classList.add('selected');
+      }
+    });
+  };
+  
+  customBgColor.oninput = () => {
+    selectedBgColor = customBgColor.value;
+    bgColorOptions.forEach(option => {
+      option.classList.remove('selected');
+      if (option.dataset.color.toLowerCase() === selectedBgColor.toLowerCase()) {
+        option.classList.add('selected');
+      }
+    });
+  };
+  
+  webLinkCancelBtn.addEventListener('click', hideWebLinkDialog);
+  webLinkConfirmBtn.addEventListener('click', confirmWebLink);
+  
+  // 在initApp函数中添加无限制按钮的事件监听
+  if (unlimitedChildrenBtn) {
+    unlimitedChildrenBtn.addEventListener('click', setUnlimitedChildren);
+  }
+}
+
+// 简化版的拖拽功能
+function setupNoteDragExport() {
+  // 为笔记列表项添加拖拽能力
+  notesList.addEventListener('mousedown', function(event) {
+    // 确保点击的是笔记项而不是删除按钮
+    const noteItem = event.target.closest('.note-item');
+    if (!noteItem || event.target.classList.contains('delete-btn')) return;
+    
+    const noteId = noteItem.dataset.id;
+    if (!noteId) return;
+    
+    // 设置为可拖拽
+    noteItem.setAttribute('draggable', 'true');
+    
+    // 鼠标抬起时移除draggable属性
+    const mouseUpHandler = function() {
+      noteItem.removeAttribute('draggable');
+      document.removeEventListener('mouseup', mouseUpHandler);
+    };
+    
+    document.addEventListener('mouseup', mouseUpHandler);
+  });
+
+  // 处理拖拽开始事件
+  notesList.addEventListener('dragstart', async function(event) {
+    const noteItem = event.target.closest('.note-item');
+    if (!noteItem) return;
+    
+    const noteId = noteItem.dataset.id;
+    if (!noteId) return;
+    
+    // 添加拖拽视觉反馈
+    noteItem.classList.add('dragging');
+    
+    try {
+      // 获取笔记内容
+      const note = await ipcRenderer.invoke('get-note', noteId);
+      if (!note) return;
+      
+      // 准备文本内容
+      let textContent = `${note.title}\n\n`;
+      
+      // 从HTML内容中提取纯文本
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = note.content;
+      textContent += tempDiv.textContent || tempDiv.innerText || '';
+      
+      // 设置基础文本数据
+      event.dataTransfer.setData('text/plain', textContent);
+      event.dataTransfer.effectAllowed = 'copy';
+      
+      // 创建一个真正唯一的ID，包含笔记ID确保不同笔记不会混淆
+      const uniqueId = `${noteId}_${Date.now()}`;
+      
+      // 通知主进程创建文件
+      const result = await ipcRenderer.invoke('prepare-file-for-drag', {
+        fileName: `${note.title.replace(/[\\/:*?"<>|]/g, '_')}.txt`,
+        content: textContent,
+        noteId: noteId,
+        requestId: uniqueId
+      });
+      
+      if (result && result.success && !result.reused) {
+        // 成功创建文件后，显示一个通知
+        showToast('文件已保存到桌面');
+      }
+    } catch (error) {
+      console.error('准备拖拽数据失败:', error);
+    }
+  });
+
+  // 处理拖拽结束事件
+  notesList.addEventListener('dragend', function(event) {
+    const noteItem = event.target.closest('.note-item');
+    if (noteItem) {
+      noteItem.classList.remove('dragging');
+    }
+  });
+  
+  // 为当前查看的笔记添加拖拽功能
+  noteContentContainer.addEventListener('mousedown', function(event) {
+    const titleArea = event.target.closest('#note-title-display');
+    if (!titleArea || !currentNoteId) return;
+    
+    noteContentContainer.setAttribute('draggable', 'true');
+    
+    const mouseUpHandler = function() {
+      noteContentContainer.removeAttribute('draggable');
+      document.removeEventListener('mouseup', mouseUpHandler);
+    };
+    
+    document.addEventListener('mouseup', mouseUpHandler);
+  });
+
+  // 处理当前笔记的拖拽开始
+  noteContentContainer.addEventListener('dragstart', async function(event) {
+    const titleArea = event.target.closest('#note-title-display');
+    if (!titleArea || !currentNoteId) return;
+    
+    try {
+      // 获取当前笔记
+      const note = await ipcRenderer.invoke('get-note', currentNoteId);
+      if (!note) return;
+      
+      // 准备文本内容
+      let textContent = `${note.title}\n\n`;
+      
+      // 从HTML内容中提取纯文本
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = note.content;
+      textContent += tempDiv.textContent || tempDiv.innerText || '';
+      
+      // 设置基础文本数据
+      event.dataTransfer.setData('text/plain', textContent);
+      event.dataTransfer.effectAllowed = 'copy';
+      
+      // 创建一个真正唯一的ID，包含笔记ID确保不同笔记不会混淆
+      const uniqueId = `content_${currentNoteId}_${Date.now()}`;
+      
+      // 通知主进程创建文件
+      const result = await ipcRenderer.invoke('prepare-file-for-drag', {
+        fileName: `${note.title.replace(/[\\/:*?"<>|]/g, '_')}.txt`,
+        content: textContent,
+        noteId: currentNoteId,
+        requestId: uniqueId
+      });
+      
+      if (result && result.success && !result.reused) {
+        showToast('文件已保存到桌面');
+      }
+    } catch (error) {
+      console.error('准备拖拽数据失败:', error);
+    }
+  });
+}
+
+// 启用文本编辑器中的文字拖拽
+function setupEditorDragExport(editor) {
+  // 监听选择事件
+  editor.addEventListener('mouseup', function() {
+    const selection = window.getSelection();
+    if (selection.toString().trim() !== '') {
+      editor.setAttribute('draggable', 'true');
+      
+      const clearDraggable = function() {
+        editor.removeAttribute('draggable');
+        editor.removeEventListener('dragend', clearDraggable);
+        editor.removeEventListener('mousedown', clearDraggable);
+      };
+      
+      editor.addEventListener('dragend', clearDraggable);
+      editor.addEventListener('mousedown', clearDraggable);
+    }
+  });
+  
+  // 拖拽选中的文本
+  editor.addEventListener('dragstart', async function(event) {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    if (selectedText === '') return;
+    
+    // 设置基础文本数据
+    event.dataTransfer.setData('text/plain', selectedText);
+    event.dataTransfer.effectAllowed = 'copy';
+    
+    // 创建一个唯一ID，包含文本的哈希值部分来确保唯一性
+    const textHash = selectedText.substr(0, 20).replace(/\s+/g, '_'); // 简单生成文本的标识
+    const uniqueId = `selection_${textHash}_${Date.now()}`;
+    
+    // 通知主进程创建文件
+    const result = await ipcRenderer.invoke('prepare-file-for-drag', {
+      fileName: `笔记片段_${new Date().toISOString().slice(0, 10)}.txt`,
+      content: selectedText,
+      requestId: uniqueId
+    });
+    
+    if (result && result.success && !result.reused) {
+      showToast('文件已保存到桌面');
+    }
+  });
+}
+
+// 在初始化函数末尾调用这个函数来显示toast消息
+function showToast(message, duration = 3000) {
+  // 检查是否已存在toast元素
+  let toast = document.querySelector('.toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  
+  // 设置消息并显示
+  toast.textContent = message;
+  toast.classList.add('show');
+  
+  // 设置自动隐藏
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, duration);
+}
+
+// 在DOM加载完成后添加样式
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+  addGlobalStyles();
+  addDragDropTipToDialog();
+  addDragDropStyles();
+});
+
+// 创建背景容器
+function createBackgroundContainer() {
+  // 检查是否已存在背景容器
+  if (!document.querySelector('.bg-container')) {
+    const bgContainer = document.createElement('div');
+    bgContainer.className = 'bg-container';
+    document.body.insertBefore(bgContainer, document.body.firstChild);
+    console.log('创建背景容器成功');
+  } else {
+    console.log('背景容器已存在');
+  }
+}
+
+// 更新透明度预览
+function updateOpacityPreview() {
+  const value = opacitySlider.value;
+  opacityValue.textContent = `${value}%`;
+}
+
+// 更改窗口透明度
+async function changeOpacity() {
+  const value = parseInt(opacitySlider.value);
+  settings.opacity = value;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    applyOpacity(value);
+  } catch (error) {
+    console.error('更新透明度设置失败:', error);
+  }
+}
+
+// 应用透明度
+function applyOpacity(value) {
+  document.body.style.opacity = value / 100;
+  
+  // 同时通知主进程更新窗口透明度
+  ipcRenderer.invoke('window-opacity', value / 100);
+}
+
+// 更新工具栏状态
+function updateToolbarState() {
+  formatButtons.forEach(button => {
+    const command = button.dataset.command;
+    if (document.queryCommandState(command)) {
+      button.classList.add('active');
+    } else {
+      button.classList.remove('active');
+    }
+  });
+}
+
+// 放大编辑器
+function expandEditor() {
+  expandedContent.innerHTML = noteEditor.innerHTML;
+  expandedContainer.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+// 收起放大模式
+function collapseEditor() {
+  noteEditor.innerHTML = expandedContent.innerHTML;
+  expandedContainer.classList.add('hidden');
+  document.body.style.overflow = '';
+  saveNoteContent();
+}
+
+// 保存放大模式内容
+async function saveExpandedContent() {
+  if (currentNoteId) {
+    try {
+      const content = expandedContent.innerHTML;
+      const now = Date.now();
+      await ipcRenderer.invoke('update-note', currentNoteId, content, now);
+      
+      // 同步更新普通编辑器内容
+      noteEditor.innerHTML = content;
+      
+      // 触发自动同步备份
+      ipcRenderer.send('note-updated', currentNoteId, content);
+    } catch (error) {
+      console.error('保存笔记失败:', error);
+    }
+  }
+}
+
+// 加载设置
+async function loadSettings() {
+  try {
+    settings = await ipcRenderer.invoke('get-settings');
+    applyTheme(settings.theme);
+    
+    // 应用折叠设置
+    foldTitlesToggle.checked = settings.foldTitles;
+    
+    // 应用透明度设置
+    if (settings.opacity !== undefined) {
+      opacitySlider.value = settings.opacity;
+      opacityValue.textContent = `${settings.opacity}%`;
+      applyOpacity(settings.opacity);
+    }
+    
+    // 应用最大层级设置
+    if (maxLevelSlider && settings.maxLevel !== undefined) {
+      maxLevelSlider.value = settings.maxLevel;
+      maxLevelValue.textContent = settings.maxLevel;
+    } else if (maxLevelSlider) {
+      // 默认值为5
+      maxLevelSlider.value = 5;
+      maxLevelValue.textContent = '5';
+      settings.maxLevel = 5;
+    }
+    
+    // 应用最大子级数量设置
+    if (maxChildrenSlider && settings.maxChildren !== undefined) {
+      maxChildrenSlider.value = settings.maxChildren === 0 ? 0 : settings.maxChildren;
+      maxChildrenValue.textContent = settings.maxChildren === 0 ? '无限制' : settings.maxChildren;
+    } else if (maxChildrenSlider) {
+      // 默认值为0（无限制）
+      maxChildrenSlider.value = 0;
+      maxChildrenValue.textContent = '无限制';
+      settings.maxChildren = 0;
+    }
+    
+    // 应用表情包提示设置
+    if (emojiTipsToggle) {
+      emojiTipsToggle.checked = settings.emojiTips || false;
+    }
+    
+    // 应用按钮位置设置
+    if (settings.buttonPosition) {
+      applyButtonPosition(settings.buttonPosition);
+      
+      // 设置对应的单选按钮
+      const positionRadio = document.getElementById(`position-${settings.buttonPosition}`);
+      if (positionRadio) {
+        positionRadio.checked = true;
+      }
+    } else {
+      // 默认为左侧
+      applyButtonPosition('left');
+      if (positionLeftRadio) {
+        positionLeftRadio.checked = true;
+      }
+    }
+    
+    // 应用链接显示位置设置
+    if (settings.linksDisplayPosition) {
+      applyLinksDisplayPosition(settings.linksDisplayPosition);
+      
+      // 设置对应的单选按钮
+      const linksPositionRadio = document.getElementById(`links-position-${settings.linksDisplayPosition}`);
+      if (linksPositionRadio) {
+        linksPositionRadio.checked = true;
+      }
+    } else {
+      // 默认为默认位置
+      applyLinksDisplayPosition('default');
+      if (linksPositionDefaultRadio) {
+        linksPositionDefaultRadio.checked = true;
+      }
+    }
+    
+    // 应用背景设置
+    if (settings.background) {
+      console.log('加载背景设置:', settings.background);
+      
+      // 设置选中的背景类型
+      const radioToCheck = document.querySelector(`input[name="background-type"][value="${settings.background.type}"]`);
+      if (radioToCheck) {
+        radioToCheck.checked = true;
+      }
+      
+      // 根据背景类型显示对应选项
+      toggleBackgroundOptions();
+      
+      // 设置对应的值
+      if (settings.background.type === 'color' && settings.background.value) {
+        backgroundColorInput.value = settings.background.value;
+      } else if (settings.background.type === 'url' && settings.background.value) {
+        backgroundUrlInput.value = settings.background.value;
+      } else if (settings.background.type === 'image' && settings.background.value) {
+        // 设置已选图片名称
+        const fileName = settings.background.value.split('/').pop();
+        selectedImageName.textContent = fileName || '已选择图片';
+      }
+      
+      // 确保透明度和模糊度有默认值
+      if (settings.background.opacity === undefined) {
+        settings.background.opacity = 100;
+      }
+      
+      if (settings.background.blur === undefined) {
+        settings.background.blur = 0;
+      }
+      
+      if (settings.background.zIndex === undefined) {
+        settings.background.zIndex = -1;
+      }
+      
+      // 设置透明度和模糊度滑块
+      bgOpacitySlider.value = settings.background.opacity;
+      bgOpacityValue.textContent = `${settings.background.opacity}%`;
+      
+      bgBlurSlider.value = settings.background.blur;
+      bgBlurValue.textContent = `${settings.background.blur}px`;
+      
+      bgZindexSlider.value = settings.background.zIndex;
+      bgZindexValue.textContent = settings.background.zIndex;
+      
+      // 应用背景
+      applyBackground(settings.background);
+    }
+  } catch (error) {
+    console.error('加载设置失败:', error);
+  }
+}
+
+// 应用主题
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark-theme');
+    darkThemeBtn.classList.add('active');
+    lightThemeBtn.classList.remove('active');
+  } else {
+    document.body.classList.remove('dark-theme');
+    lightThemeBtn.classList.add('active');
+    darkThemeBtn.classList.remove('active');
+  }
+}
+
+// 更改主题
+async function changeTheme(theme) {
+  settings.theme = theme;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    applyTheme(theme);
+  } catch (error) {
+    console.error('更新设置失败:', error);
+  }
+}
+
+// 切换折叠标题设置
+async function toggleFoldTitles() {
+  settings.foldTitles = foldTitlesToggle.checked;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    renderNotesList(await ipcRenderer.invoke('get-notes'));
+  } catch (error) {
+    console.error('更新设置失败:', error);
+  }
+}
+
+// 处理添加按钮点击
+async function handleAddButtonClick() {
+  if (selectedOutlineId) {
+    // 为选中的大纲添加小标题
+    isAddingSubnote = true;
+    
+    try {
+      // 获取选中笔记的信息，显示父笔记的标题
+      const parentNote = await ipcRenderer.invoke('get-note', selectedOutlineId);
+      if (parentNote && parentNote.title) {
+        addDialogTitle.textContent = `为"${parentNote.title}"添加小标题`;
+      } else {
+        addDialogTitle.textContent = '添加小标题';
+      }
+    } catch (error) {
+      console.error('获取父笔记信息失败:', error);
+      addDialogTitle.textContent = '添加小标题';
+    }
+    
+    showAddNoteDialog();
+  } else {
+    // 添加新大纲
+    isAddingSubnote = false;
+    addDialogTitle.textContent = '添加新笔记';
+    showAddNoteDialog();
+  }
+}
+
+// 确认添加笔记
+async function handleConfirmAdd() {
+  const title = noteTitleInput.value.trim();
+  if (title) {
+    try {
+      if (isAddingSubnote && selectedOutlineId) {
+        // 检查当前选中笔记的层级，如果已经达到最大层级限制，则无法添加子笔记
+        if (selectedNoteLevel >= settings.maxLevel) {
+          showToast(`无法添加更多子笔记，已达到最大层级限制(${settings.maxLevel}级)`);
+          hideAddNoteDialog();
+          return;
+        }
+        
+        // 添加小标题
+        const newSubnote = await ipcRenderer.invoke('add-subnote', selectedOutlineId, title);
+        
+        // 检查是否成功添加
+        if (newSubnote && newSubnote.error) {
+          showToast(newSubnote.error);
+          hideAddNoteDialog();
+          return;
+        }
+        
+        // 添加成功的提示，包含级别信息
+        const newLevel = selectedNoteLevel + 1;
+        showToast(`成功添加"${title}"(${newLevel}级)`);
+        
+        hideAddNoteDialog();
+        await loadNotes();
+        if (newSubnote && newSubnote.id) {
+          openNote(newSubnote.id);
+        }
+      } else {
+        // 添加大纲标题
+        const newOutline = await ipcRenderer.invoke('add-outline', title);
+        
+        if (newOutline) {
+          showToast(`成功添加"${title}"(1级)`);
+          hideAddNoteDialog();
+          await loadNotes();
+          openNote(newOutline.id);
+        } else {
+          showToast('添加笔记失败');
+          hideAddNoteDialog();
+        }
+      }
+    } catch (error) {
+      console.error('添加笔记失败:', error);
+      showToast('添加笔记失败: ' + (error.message || '未知错误'));
+      hideAddNoteDialog();
+    }
+  }
+}
+
+// 加载所有笔记
+async function loadNotes() {
+  try {
+    const notes = await ipcRenderer.invoke('get-notes');
+    renderNotesList(notes);
+  } catch (error) {
+    console.error('加载笔记失败:', error);
+  }
+}
+
+// 渲染笔记列表
+function renderNotesList(notes) {
+  notesList.innerHTML = '';
+  selectedOutlineId = null;
+  selectedNoteLevel = 1;
+  selectedNoteType = null;
+  
+  if (notes.length === 0) {
+    notesList.innerHTML = '<div class="empty-state">暂无笔记，点击右下角"添加"按钮创建</div>';
+    return;
+  }
+  
+  // 按创建时间从新到旧排序
+  notes.sort((a, b) => b.created - a.created);
+  
+  // 递归渲染笔记及其子笔记
+  const renderNote = (note, container, level = 1, parentClass = '') => {
+    const hasChildren = note.children && note.children.length > 0;
+    
+    // 创建笔记项
+    const noteItem = document.createElement('div');
+    noteItem.className = `note-item ${hasChildren ? 'outline' : ''} ${parentClass} level-${level}`;
+    if (settings.foldTitles && hasChildren) {
+      noteItem.classList.add('collapsed');
+    }
+    noteItem.dataset.id = note.id;
+    noteItem.dataset.type = note.type || 'outline';
+    noteItem.dataset.level = level;
+    
+    // 应用背景颜色（如果存在）
+    if (note.metadata && note.metadata.bgColor) {
+      noteItem.style.backgroundColor = note.metadata.bgColor;
+      noteItem.classList.add('custom-bg');
+    }
+    
+    // 创建标题和日期
+    let toggleHtml = hasChildren ? 
+      `<span class="outline-toggle">${settings.foldTitles ? '▶' : '▼'}</span>` : '';
+    
+    // 添加级别标志
+    const levelBadge = `<span class="level-badge">${level}级</span>`;
+    
+    // 添加创建时间和最后更新时间（对所有笔记，包括子笔记）
+    const createdDate = formatDate(note.created);
+    const updatedDate = note.updated ? formatDate(note.updated) : createdDate;
+    const timeInfo = note.updated ? 
+      `创建于: ${createdDate} | 最后更新: ${updatedDate}` : 
+      `创建于: ${createdDate}`;
+    
+    noteItem.innerHTML = `
+      <h3>${toggleHtml}<span class="note-title-text">${escapeHtml(note.title)}</span>${levelBadge}</h3>
+      <div class="note-date">${timeInfo}</div>
+      <button class="delete-btn" title="删除">×</button>
+    `;
+    
+    // 添加点击事件
+    noteItem.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-btn')) {
+        e.stopPropagation();
+        showDeleteConfirmDialog(note.id, note.type || 'outline');
+      } else if (e.target.classList.contains('outline-toggle')) {
+        e.stopPropagation();
+        toggleOutlineCollapse(noteItem);
+      } else {
+        selectOutline(note.id, level);
+        openNote(note.id);
+      }
+    });
+    
+    // 添加双击标题修改功能
+    const titleText = noteItem.querySelector('.note-title-text');
+    titleText.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startTitleEdit(note.id, titleText);
+    });
+    
+    container.appendChild(noteItem);
+    
+    // 为子笔记创建容器
+    if (hasChildren) {
+      const subnoteContainer = document.createElement('div');
+      subnoteContainer.className = 'subnotes-container';
+      
+      // 递归渲染子笔记
+      note.children.sort((a, b) => b.created - a.created); // 子笔记也按时间排序
+      
+      // 应用子级数量限制
+      let childrenToRender = note.children;
+      if (settings.maxChildren > 0) {
+        // 如果设置了限制且不为0，则限制子级数量
+        childrenToRender = note.children.slice(0, settings.maxChildren);
+        
+        // 如果有更多子级但被限制了，显示提示
+        if (note.children.length > settings.maxChildren) {
+          const limitMessage = document.createElement('div');
+          limitMessage.className = 'children-limit-message';
+          limitMessage.textContent = `仅显示 ${settings.maxChildren}/${note.children.length} 个子标题 (已达到限制)`;
+          subnoteContainer.appendChild(limitMessage);
+        }
+      }
+      
+      childrenToRender.forEach(subnote => {
+        // 检查层级限制，使用设置中的最大层级
+        if (level < settings.maxLevel) {
+          renderNote(
+            subnote, 
+            subnoteContainer, 
+            (subnote.level || level + 1), 
+            'subnote'
+          );
+        }
+      });
+      
+      // 添加新的层级限制提示
+      if (level === settings.maxLevel - 1 && childrenToRender.length > 0) {
+        const levelLimitMessage = document.createElement('div');
+        levelLimitMessage.className = 'children-limit-message';
+        levelLimitMessage.textContent = `最大层级限制为${settings.maxLevel}级，更改设置可查看更多层级`;
+        subnoteContainer.appendChild(levelLimitMessage);
+      }
+      
+      container.appendChild(subnoteContainer);
+    }
+  };
+  
+  // 渲染顶层笔记
+  notes.forEach(note => {
+    renderNote(note, notesList, note.level || 1);
+  });
+}
+
+// 切换大纲折叠状态
+function toggleOutlineCollapse(outlineItem) {
+  outlineItem.classList.toggle('collapsed');
+  
+  // 更新折叠图标
+  const toggleIcon = outlineItem.querySelector('.outline-toggle');
+  if (toggleIcon) {
+    toggleIcon.textContent = outlineItem.classList.contains('collapsed') ? '▶' : '▼';
+  }
+}
+
+// 选中大纲
+function selectOutline(id, level) {
+  // 移除之前的选中状态
+  document.querySelectorAll('.note-item.selected').forEach(item => {
+    item.classList.remove('selected');
+  });
+  
+  // 添加新的选中状态
+  const outlineItem = document.querySelector(`.note-item[data-id="${id}"]`);
+  if (outlineItem) {
+    outlineItem.classList.add('selected');
+    selectedOutlineId = id;
+    
+    // 保存当前选中笔记的层级和类型信息
+    selectedNoteLevel = parseInt(outlineItem.dataset.level) || level;
+    selectedNoteType = outlineItem.dataset.type || 'outline';
+    
+    // 如果该大纲有子笔记，并且是折叠状态，则展开
+    if (outlineItem.classList.contains('outline') && outlineItem.classList.contains('collapsed')) {
+      toggleOutlineCollapse(outlineItem);
+    }
+    
+    // 确保所有父级容器都展开
+    let parent = outlineItem.parentElement;
+    while (parent && parent.classList.contains('subnotes-container')) {
+      const parentItem = parent.previousElementSibling;
+      if (parentItem && parentItem.classList.contains('collapsed')) {
+        toggleOutlineCollapse(parentItem);
+      }
+      parent = parent.parentElement;
+    }
+  }
+}
+
+// 打开笔记
+async function openNote(id) {
+  try {
+    const note = await ipcRenderer.invoke('get-note', id);
+    if (note) {
+      currentNoteId = note.id;
+      currentNoteType = note.type || 'outline';
+      noteTitleDisplay.textContent = note.title;
+      noteEditor.innerHTML = note.content;
+      
+      // 应用保存的标题颜色
+      if (note.metadata && note.metadata.titleColor) {
+        noteTitleDisplay.style.color = note.metadata.titleColor;
+      } else {
+        // 重置为默认颜色
+        noteTitleDisplay.style.color = '';
+      }
+      
+      // 应用背景颜色到笔记项目（在列表中）
+      if (note.metadata && note.metadata.bgColor) {
+        const noteItem = document.querySelector(`.note-item[data-id="${id}"]`);
+        if (noteItem) {
+          noteItem.style.backgroundColor = note.metadata.bgColor;
+          noteItem.classList.add('custom-bg');
+        }
+      }
+      
+      notesListContainer.classList.add('viewing-note');
+      noteContentContainer.classList.remove('hidden');
+      
+      // 每次打开笔记时更新工具栏状态
+      updateToolbarState();
+      
+      // 隐藏列表视图中的时间信息
+      const allNoteDates = document.querySelectorAll('.note-date');
+      allNoteDates.forEach(dateEl => {
+        dateEl.classList.add('hidden');
+      });
+    }
+  } catch (error) {
+    console.error('获取笔记失败:', error);
+  }
+}
+
+// 显示删除确认对话框
+function showDeleteConfirmDialog(id, type) {
+  const message = type === 'outline' 
+    ? '确定要删除这个笔记及其所有小标题吗？此操作不可恢复。' 
+    : '确定要删除这个小标题吗？此操作不可恢复。';
+  
+  confirmMessage.textContent = message;
+  confirmDialog.classList.remove('hidden');
+  
+  // 设置确认按钮的事件
+  confirmOkBtn.onclick = async () => {
+    await deleteNote(id, type);
+    hideConfirmDialog();
+  };
+  
+  // 添加点击空白处关闭对话框的功能
+  confirmDialog.addEventListener('click', closeConfirmDialogOnBlankClick);
+}
+
+// 隐藏确认对话框
+function hideConfirmDialog() {
+  confirmDialog.classList.add('hidden');
+  confirmOkBtn.onclick = null;
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  confirmDialog.removeEventListener('click', closeConfirmDialogOnBlankClick);
+}
+
+// 点击空白处关闭确认对话框
+function closeConfirmDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === confirmDialog) {
+    hideConfirmDialog();
+  }
+}
+
+// 删除笔记
+async function deleteNote(id, type) {
+  try {
+    const result = await ipcRenderer.invoke('delete-note', id);
+    if (result) {
+      if (currentNoteId === id) {
+        showNotesList();
+      }
+      
+      if (selectedOutlineId === id) {
+        selectedOutlineId = null;
+        selectedNoteLevel = 1;
+        selectedNoteType = null;
+      }
+      
+      await loadNotes();
+    }
+  } catch (error) {
+    console.error('删除笔记失败:', error);
+  }
+}
+
+// 保存笔记内容
+async function saveNoteContent() {
+  if (currentNoteId) {
+    try {
+      const content = noteEditor.innerHTML;
+      const now = Date.now();
+      await ipcRenderer.invoke('update-note', currentNoteId, content, now);
+      
+      // 触发自动同步备份
+      ipcRenderer.send('note-updated', currentNoteId, content);
+    } catch (error) {
+      console.error('保存笔记失败:', error);
+    }
+  }
+}
+
+// 显示笔记列表（返回）
+function showNotesList() {
+  currentNoteId = null;
+  currentNoteType = null;
+  notesListContainer.classList.remove('viewing-note');
+  noteContentContainer.classList.add('hidden');
+  
+  // 显示所有时间信息
+  const allNoteDates = document.querySelectorAll('.note-date');
+  allNoteDates.forEach(dateEl => {
+    dateEl.classList.remove('hidden');
+  });
+  
+  // 如果放大模式打开，也关闭它
+  if (!expandedContainer.classList.contains('hidden')) {
+    collapseEditor();
+  }
+}
+
+// 显示添加笔记对话框
+function showAddNoteDialog() {
+  addNoteDialog.classList.remove('hidden');
+  noteTitleInput.value = '';
+  noteTitleInput.focus();
+  
+  // 添加拖拽文本文件支持
+  setupTxtFileDragDrop();
+  
+  // 确保显示拖拽提示文本
+  addDragDropTipToDialog();
+  
+  // 添加点击空白处关闭对话框的功能
+  addNoteDialog.addEventListener('click', closeAddNoteDialogOnBlankClick);
+}
+
+// 隐藏添加笔记对话框
+function hideAddNoteDialog() {
+  addNoteDialog.classList.add('hidden');
+  isAddingSubnote = false;
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  addNoteDialog.removeEventListener('click', closeAddNoteDialogOnBlankClick);
+}
+
+// 点击空白处关闭添加笔记对话框
+function closeAddNoteDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === addNoteDialog) {
+    hideAddNoteDialog();
+  }
+}
+
+// 显示设置对话框
+function showSettingsDialog() {
+  settingsDialog.classList.remove('hidden');
+  
+  // 添加点击事件监听器，点击空白处关闭设置页面
+  settingsDialog.addEventListener('click', closeSettingsOnBlankClick);
+}
+
+// 隐藏设置对话框
+function hideSettingsDialog() {
+  settingsDialog.classList.add('hidden');
+  
+  // 移除点击事件监听器
+  settingsDialog.removeEventListener('click', closeSettingsOnBlankClick);
+}
+
+// 点击空白处关闭设置页面
+function closeSettingsOnBlankClick(event) {
+  // 如果点击的是对话框的背景，而不是对话框内容
+  if (event.target === settingsDialog) {
+    hideSettingsDialog();
+  }
+}
+
+// 处理拖拽文件进入事件
+function handleDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+// 处理拖拽文件放置事件
+async function handleDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (event.dataTransfer.files.length > 0) {
+    const files = event.dataTransfer.files;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        await handleImageFile(file, event.target === expandedContent);
+      }
+    }
+  }
+}
+
+// 处理图片文件
+async function handleImageFile(file, isExpanded) {
+  const reader = new FileReader();
+  
+  reader.onload = async function(e) {
+    const dataUrl = e.target.result;
+    
+    try {
+      const imageInfo = await ipcRenderer.invoke('save-image', dataUrl);
+      if (imageInfo) {
+        // 根据当前编辑区域插入图片
+        if (isExpanded) {
+          insertImageAtCursorExpanded(imageInfo.filePath);
+        } else {
+          insertImageAtCursor(imageInfo.filePath);
+        }
+        
+        // 保存更改
+        if (isExpanded) {
+          await saveExpandedContent();
+        } else {
+          await saveNoteContent();
+        }
+      }
+    } catch (error) {
+      console.error('处理图片失败:', error);
+    }
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+// 在光标位置插入图片
+function insertImageAtCursor(imagePath) {
+  const img = document.createElement('img');
+  img.src = imagePath;
+  img.alt = '笔记图片';
+  
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    range.insertNode(img);
+    range.setStartAfter(img);
+    range.setEndAfter(img);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    noteEditor.appendChild(img);
+  }
+}
+
+// 在放大模式下在光标位置插入图片
+function insertImageAtCursorExpanded(imagePath) {
+  const img = document.createElement('img');
+  img.src = imagePath;
+  img.alt = '笔记图片';
+  
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    range.insertNode(img);
+    range.setStartAfter(img);
+    range.setEndAfter(img);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    expandedContent.appendChild(img);
+  }
+}
+
+// 格式化日期
+function formatDate(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+// 防抖函数
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), wait);
+  };
+}
+
+// HTML转义，防止XSS
+function escapeHtml(html) {
+  const div = document.createElement('div');
+  div.textContent = html;
+  return div.innerHTML;
+}
+
+// 切换背景选项显示
+function toggleBackgroundOptions() {
+  const selectedType = document.querySelector('input[name="background-type"]:checked').value;
+  
+  console.log('选择背景类型:', selectedType);
+  
+  // 隐藏所有选项
+  backgroundColorContainer.classList.add('hidden');
+  backgroundImageContainer.classList.add('hidden');
+  backgroundUrlContainer.classList.add('hidden');
+  
+  // 根据类型显示相应的选项
+  if (selectedType === 'color') {
+    backgroundColorContainer.classList.remove('hidden');
+    backgroundAdjustments.classList.remove('hidden');
+  } else if (selectedType === 'image') {
+    backgroundImageContainer.classList.remove('hidden');
+    backgroundAdjustments.classList.remove('hidden');
+  } else if (selectedType === 'url') {
+    backgroundUrlContainer.classList.remove('hidden');
+    backgroundAdjustments.classList.remove('hidden');
+  } else {
+    // 如果选择"无背景"，则隐藏调整选项
+    backgroundAdjustments.classList.add('hidden');
+  }
+  
+  // 更新设置
+  settings.background.type = selectedType;
+  updateBackgroundSettings();
+}
+
+// 更新背景透明度预览
+function updateBgOpacityPreview() {
+  const value = bgOpacitySlider.value;
+  bgOpacityValue.textContent = `${value}%`;
+}
+
+// 更新背景模糊度预览
+function updateBgBlurPreview() {
+  const value = bgBlurSlider.value;
+  bgBlurValue.textContent = `${value}px`;
+}
+
+// 更新背景显示层级预览
+function updateBgZindexPreview() {
+  const value = bgZindexSlider.value;
+  bgZindexValue.textContent = value;
+}
+
+// 更新背景颜色
+function updateBackgroundColor() {
+  settings.background.value = backgroundColorInput.value;
+  updateBackgroundSettings();
+}
+
+// 选择背景图片
+async function chooseBackgroundImage() {
+  try {
+    const result = await ipcRenderer.invoke('choose-background-image');
+    console.log('选择背景图片结果:', result);
+    if (result.success) {
+      settings.background.value = result.path;
+      selectedImageName.textContent = result.fileName || '已选择图片';
+      updateBackgroundSettings();
+    }
+  } catch (error) {
+    console.error('选择背景图片失败:', error);
+  }
+}
+
+// 更新背景URL
+function updateBackgroundUrl() {
+  settings.background.value = backgroundUrlInput.value;
+  updateBackgroundSettings();
+}
+
+// 更新背景设置
+async function updateBackgroundSettings() {
+  try {
+    // 更新透明度、模糊度和显示层级设置
+    settings.background.opacity = parseInt(bgOpacitySlider.value);
+    settings.background.blur = parseInt(bgBlurSlider.value);
+    settings.background.zIndex = parseInt(bgZindexSlider.value);
+    
+    console.log('更新背景设置:', settings.background);
+    await ipcRenderer.invoke('update-settings', settings);
+    applyBackground(settings.background);
+  } catch (error) {
+    console.error('更新背景设置失败:', error);
+  }
+}
+
+// 应用背景
+function applyBackground(backgroundSettings) {
+  const bgContainer = document.querySelector('.bg-container');
+  if (!bgContainer) {
+    console.error('背景容器不存在');
+    return;
+  }
+  
+  // 移除所有背景相关样式
+  bgContainer.style.backgroundImage = '';
+  bgContainer.style.backgroundColor = '';
+  bgContainer.style.opacity = '';
+  bgContainer.style.backdropFilter = '';
+  bgContainer.style.webkitBackdropFilter = '';
+  bgContainer.style.filter = '';
+  
+  // 移除可能存在的类名
+  bgContainer.classList.remove('above-content');
+  
+  console.log('应用背景设置:', backgroundSettings);
+  
+  // 根据设置应用背景
+  if (backgroundSettings.type === 'none') {
+    bgContainer.style.display = 'none';
+    return;
+  }
+  
+  bgContainer.style.display = 'block';
+  
+  // 设置透明度
+  const opacity = backgroundSettings.opacity !== undefined ? backgroundSettings.opacity / 100 : 1;
+  bgContainer.style.opacity = opacity;
+  
+  // 设置模糊度
+  const blur = backgroundSettings.blur !== undefined ? backgroundSettings.blur : 0;
+  if (blur > 0) {
+    // 注意：模糊效果应该应用在背景图片上，而不是整个容器
+    bgContainer.style.filter = `blur(${blur}px)`;
+  }
+  
+  // 设置显示层级
+  const zIndex = backgroundSettings.zIndex !== undefined ? backgroundSettings.zIndex : -1;
+  bgContainer.style.zIndex = zIndex;
+  console.log('设置背景层级:', zIndex);
+  
+  // 如果层级大于0，添加above-content类
+  if (zIndex > 0) {
+    bgContainer.classList.add('above-content');
+    console.log('背景显示在内容之上');
+  }
+  
+  if (backgroundSettings.type === 'color' && backgroundSettings.value) {
+    bgContainer.style.backgroundColor = backgroundSettings.value;
+    console.log('应用纯色背景:', backgroundSettings.value);
+  } else if (backgroundSettings.type === 'image' && backgroundSettings.value) {
+    // 确保图片路径正确处理
+    console.log('应用背景图片:', backgroundSettings.value);
+    
+    // 尝试不同的URL格式
+    let imagePath = backgroundSettings.value;
+    
+    // 如果路径不是以file:///开头，尝试添加
+    if (!imagePath.startsWith('file:///') && !imagePath.startsWith('http')) {
+      if (process.platform === 'win32') {
+        imagePath = 'file:///' + imagePath.replace(/\\/g, '/');
+      } else {
+        imagePath = 'file://' + imagePath;
+      }
+    }
+    
+    // 尝试直接设置背景
+    bgContainer.style.backgroundImage = `url("${imagePath}")`;
+    
+    // 添加错误处理
+    const testImg = new Image();
+    testImg.onerror = () => {
+      console.error('背景图片加载失败，尝试替代路径');
+      
+      // 尝试替代路径
+      const alternativePath = imagePath.replace('file:///', '');
+      bgContainer.style.backgroundImage = `url("${alternativePath}")`;
+      
+      // 如果还是失败，尝试相对路径
+      testImg.onerror = () => {
+        console.error('替代路径也失败，尝试相对路径');
+        const relativePath = backgroundSettings.value.split('/').pop();
+        bgContainer.style.backgroundImage = `url("${relativePath}")`;
+      };
+      testImg.src = alternativePath;
+    };
+    testImg.src = imagePath;
+    
+  } else if (backgroundSettings.type === 'url' && backgroundSettings.value) {
+    // 确保URL路径正确处理
+    console.log('应用URL背景:', backgroundSettings.value);
+    bgContainer.style.backgroundImage = `url("${backgroundSettings.value}")`;
+  }
+}
+
+// 显示备份笔记选择对话框
+async function showBackupNotesDialog() {
+  try {
+    // 重置选中的笔记
+    selectedBackupNotes = [];
+    backupNotesList.innerHTML = '';
+    
+    // 获取所有笔记
+    const notes = await ipcRenderer.invoke('get-notes');
+    
+    if (notes.length === 0) {
+      backupNotesList.innerHTML = '<div class="empty-state">暂无笔记可供备份</div>';
+    } else {
+      // 渲染笔记列表以供选择
+      notes.forEach(note => {
+        // 创建大纲项
+        const noteItem = document.createElement('div');
+        noteItem.className = 'backup-note-item';
+        
+        noteItem.innerHTML = `
+          <label>
+            <input type="checkbox" data-id="${note.id}">
+            ${escapeHtml(note.title)}
+          </label>
+        `;
+        
+        backupNotesList.appendChild(noteItem);
+        
+        // 如果有子笔记，也显示它们
+        if (note.children && note.children.length > 0) {
+          note.children.forEach(subnote => {
+            const subnoteItem = document.createElement('div');
+            subnoteItem.className = 'backup-note-item backup-subnote';
+            
+            subnoteItem.innerHTML = `
+              <label>
+                <input type="checkbox" data-id="${subnote.id}">
+                ${escapeHtml(subnote.title)}
+              </label>
+            `;
+            
+            backupNotesList.appendChild(subnoteItem);
+          });
+        }
+      });
+      
+      // 添加全选功能
+      const selectAllItem = document.createElement('div');
+      selectAllItem.className = 'backup-note-item';
+      selectAllItem.style.borderColor = '#999';
+      selectAllItem.style.marginBottom = '10px';
+      
+      selectAllItem.innerHTML = `
+        <label>
+          <input type="checkbox" id="select-all-notes">
+          <strong>全选</strong>
+        </label>
+      `;
+      
+      // 将全选项插入到列表开头
+      backupNotesList.insertBefore(selectAllItem, backupNotesList.firstChild);
+      
+      // 添加全选事件
+      const selectAllCheckbox = document.getElementById('select-all-notes');
+      selectAllCheckbox.addEventListener('change', function() {
+        const checkboxes = backupNotesList.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+          if (checkbox !== selectAllCheckbox) {
+            checkbox.checked = selectAllCheckbox.checked;
+            
+            // 更新选中的笔记ID列表
+            if (selectAllCheckbox.checked) {
+              if (checkbox.dataset.id && !selectedBackupNotes.includes(checkbox.dataset.id)) {
+                selectedBackupNotes.push(checkbox.dataset.id);
+              }
+            } else {
+              selectedBackupNotes = [];
+            }
+          }
+        });
+      });
+      
+      // 添加单个笔记选择事件
+      const noteCheckboxes = backupNotesList.querySelectorAll('input[type="checkbox"][data-id]');
+      noteCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          const noteId = checkbox.dataset.id;
+          
+          if (checkbox.checked) {
+            if (!selectedBackupNotes.includes(noteId)) {
+              selectedBackupNotes.push(noteId);
+            }
+          } else {
+            selectedBackupNotes = selectedBackupNotes.filter(id => id !== noteId);
+            // 取消全选
+            document.getElementById('select-all-notes').checked = false;
+          }
+        });
+      });
+    }
+    
+    // 显示对话框
+    hideSettingsDialog();
+    backupNotesDialog.classList.remove('hidden');
+    
+    // 添加点击空白处关闭对话框的功能
+    backupNotesDialog.addEventListener('click', closeBackupNotesDialogOnBlankClick);
+  } catch (error) {
+    console.error('准备备份对话框失败:', error);
+  }
+}
+
+// 隐藏备份笔记选择对话框
+function hideBackupNotesDialog() {
+  backupNotesDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  backupNotesDialog.removeEventListener('click', closeBackupNotesDialogOnBlankClick);
+}
+
+// 点击空白处关闭备份笔记选择对话框
+function closeBackupNotesDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === backupNotesDialog) {
+    hideBackupNotesDialog();
+  }
+}
+
+// 显示备份路径设置对话框
+function showBackupPathDialog() {
+  // 检查是否有选中的笔记
+  if (selectedBackupNotes.length === 0) {
+    // 使用与软件风格一致的提示
+    confirmMessage.textContent = '请至少选择一个笔记进行备份';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.textContent = '确定';
+    confirmOkBtn.onclick = hideConfirmDialog;
+    return;
+  }
+  
+  // 重置路径输入框和自动同步开关
+  backupPathInput.value = '';
+  autoSyncToggle.checked = false;
+  
+  // 隐藏上一个对话框并显示路径对话框
+  hideBackupNotesDialog();
+  backupPathDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  backupPathDialog.addEventListener('click', closeBackupPathDialogOnBlankClick);
+}
+
+// 隐藏备份路径对话框
+function hideBackupPathDialog() {
+  backupPathDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  backupPathDialog.removeEventListener('click', closeBackupPathDialogOnBlankClick);
+}
+
+// 点击空白处关闭备份路径对话框
+function closeBackupPathDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === backupPathDialog) {
+    hideBackupPathDialog();
+  }
+}
+
+// 选择备份路径
+async function chooseBackupPath() {
+  try {
+    const result = await ipcRenderer.invoke('choose-backup-path');
+    if (result.success) {
+      backupPathInput.value = result.path;
+    }
+  } catch (error) {
+    console.error('选择备份路径失败:', error);
+  }
+}
+
+// 执行备份操作
+async function executeBackup() {
+  const backupPath = backupPathInput.value.trim();
+  
+  if (!backupPath) {
+    // 使用与软件风格一致的提示
+    confirmMessage.textContent = '请选择备份路径';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.textContent = '确定';
+    confirmOkBtn.onclick = hideConfirmDialog;
+    return;
+  }
+  
+  try {
+    // 创建备份配置
+    const backupConfig = {
+      selectedNotes: selectedBackupNotes,
+      backupPath: backupPath,
+      autoSync: autoSyncToggle.checked
+    };
+    
+    // 执行备份
+    const result = await ipcRenderer.invoke('backup-notes', backupConfig);
+    
+    if (result.success) {
+      // 备份成功后隐藏对话框
+      hideBackupPathDialog();
+      
+      // 显示备份结果
+      const successCount = result.results.filter(r => r.success).length;
+      const totalCount = result.results.length;
+      
+      // 使用确认对话框显示结果
+      confirmMessage.textContent = `备份完成：${successCount}/${totalCount} 个笔记备份成功。`;
+      confirmDialog.classList.remove('hidden');
+      confirmOkBtn.textContent = '关闭';
+      confirmOkBtn.onclick = hideConfirmDialog;
+    } else {
+      // 使用与软件风格一致的提示
+      confirmMessage.textContent = `备份失败：${result.error || '未知错误'}`;
+      confirmDialog.classList.remove('hidden');
+      confirmOkBtn.textContent = '确定';
+      confirmOkBtn.onclick = hideConfirmDialog;
+    }
+  } catch (error) {
+    console.error('执行备份失败:', error);
+    // 使用与软件风格一致的提示
+    confirmMessage.textContent = '备份过程中发生错误';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.textContent = '确定';
+    confirmOkBtn.onclick = hideConfirmDialog;
+  }
+}
+
+// 切换表情包提示设置
+async function toggleEmojiTips() {
+  settings.emojiTips = emojiTipsToggle.checked;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    
+    // 根据设置添加或移除点击事件监听
+    if (settings.emojiTips) {
+      document.body.addEventListener('click', showRandomEmoji);
+    } else {
+      document.body.removeEventListener('click', showRandomEmoji);
+      // 移除所有现有的表情包元素
+      document.querySelectorAll('.emoji-tip').forEach(emoji => {
+        emoji.remove();
+      });
+    }
+  } catch (error) {
+    console.error('更新表情包提示设置失败:', error);
+  }
+}
+
+// 显示随机表情包
+function showRandomEmoji(event) {
+  // 表情包数组
+  const emojis = [
+    '😀', '😂', '🤣', '😊', '🥰', '😎', '🤩', '😜', '🤔', '😴', '🥳', '😇', '🤗', '🙄', '😮', '🥺', 
+    '😱', '🤯', '🥴', '🤪', '😍', '🙃', '😝', '😋', '🤓', '🧐', '😏', '😌', '😔', '😪', '😵', '🤤',
+    '🤑', '🤠', '🤥', '🤫', '🤭', '🧠', '👻', '👽', '🤖', '💩', '👨‍💻', '👩‍🎨', '👨‍🔬', '💆', '🧘', '🏃',
+    '🐱', '🐶', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐰', '🦊', '🐻', '🐹', '🐭', '🦄', '🐴', '🦓',
+    '🌈', '⭐', '🌟', '✨', '💫', '🔥', '🌊', '🍀', '🌸', '🌺', '🌻', '🌹', '🍄', '🎮', '🎯', '🎲'
+  ];
+  
+  // 颜文字数组
+  const kaomojis = [
+    '(；´д｀)ゞ', '(╯°□°）╯︵ ┻━┻', '(￣▽￣)ノ', '(´･ω･`)', 'ヽ(°〇°)ﾉ',
+    '(๑•̀ㅂ•́)و✧', '(｡･ω･｡)', '(つ≧▽≦)つ', '(ﾟДﾟ;)', '(´；ω；`)',
+    'ヾ(≧▽≦*)o', '(≧∇≦)/', '(￣ε￣)', '(￣3￣)', '(´・ω・)っ由',
+    'ヽ(✿ﾟ▽ﾟ)ノ', '(ノ_<。)', '(^_^;)', '(；一_一)', '(=^･ω･^=)',
+    '(◕‿◕)', '(/≧▽≦)/', '(・∀・)', '(っ´ω`c)', '(*´∀`*)',
+    '(╥﹏╥)', '(≧ω≦)', '(>_<)', '(｡´∀｀)ﾉ', '(◍•ᴗ•◍)',
+    'ಠ_ಠ', 'ಠ‿ಠ', '(˘▽˘)', '(⊙_⊙)', '(⊙ˍ⊙)',
+    '(｀・ω・´)', '(*^▽^*)', '(>ω<)', '(^-^*)', '(≧∀≦)',
+    'o(≧▽≦)o', '☆*:.｡.o(≧▽≦)o.｡.:*☆', '⁄(⁄⁄•⁄ω⁄•⁄⁄)⁄', '╰(▔∀▔)╯', '(￣ヘ￣)',
+    '(^▽^)', '(╯︵╰,)', '(///≧∇≦///', '(ノ°ο°)ノ', '( ´･ω･)ﾉ(._.`)'
+  ];
+  
+  // 随机选择显示表情包或颜文字
+  const showEmoji = Math.random() > 0.5;
+  
+  // 随机选择一个表情包或颜文字
+  const randomEmoji = showEmoji ? 
+    emojis[Math.floor(Math.random() * emojis.length)] : 
+    kaomojis[Math.floor(Math.random() * kaomojis.length)];
+  
+  // 随机位置（避免太靠近边缘）
+  const maxX = window.innerWidth - 100;
+  const maxY = window.innerHeight - 50;
+  const randomX = Math.floor(Math.random() * maxX);
+  const randomY = Math.floor(Math.random() * maxY);
+  
+  // 随机颜色
+  const randomColor = `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
+  
+  // 创建表情包元素
+  const emojiElement = document.createElement('div');
+  emojiElement.className = 'emoji-tip';
+  emojiElement.textContent = randomEmoji;
+  emojiElement.style.position = 'fixed';
+  emojiElement.style.left = `${randomX}px`;
+  emojiElement.style.top = `${randomY}px`;
+  emojiElement.style.color = randomColor;
+  emojiElement.style.fontSize = showEmoji ? '2rem' : '1.2rem';
+  emojiElement.style.fontFamily = showEmoji ? 'inherit' : '"Microsoft YaHei", sans-serif';
+  emojiElement.style.zIndex = '9999';
+  emojiElement.style.pointerEvents = 'none'; // 防止表情包阻挡点击
+  emojiElement.style.animation = 'fadeInOut 5s forwards';
+  
+  // 添加到页面
+  document.body.appendChild(emojiElement);
+  
+  // 5秒后移除
+  setTimeout(() => {
+    emojiElement.remove();
+  }, 5000);
+}
+
+// 初始化应用
+document.addEventListener('DOMContentLoaded', initApp);
+
+// 立即创建背景容器，不等待DOMContentLoaded
+(function() {
+  // 如果DOM已经加载完成，立即创建背景容器
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM加载完成，立即创建背景容器');
+      createBackgroundContainer();
+    });
+  } else {
+    // DOM已经加载完成
+    console.log('DOM已加载，立即创建背景容器');
+    createBackgroundContainer();
+  }
+})();
+
+// 链接管理相关函数
+// 显示链接管理对话框
+function showLinksDialog() {
+  renderLinksList();
+  linksDialog.classList.remove('hidden');
+  
+  // 添加点击事件监听器，点击空白处关闭对话框
+  linksDialog.addEventListener('click', closeLinksOnBlankClick);
+}
+
+// 隐藏链接管理对话框
+function hideLinksDialog() {
+  linksDialog.classList.add('hidden');
+  
+  // 移除点击事件监听器
+  linksDialog.removeEventListener('click', closeLinksOnBlankClick);
+}
+
+// 点击空白处关闭链接管理对话框
+function closeLinksOnBlankClick(event) {
+  if (event.target === linksDialog) {
+    hideLinksDialog();
+  }
+}
+
+// 渲染链接列表
+function renderLinksList() {
+  linksList.innerHTML = '';
+  
+  if (!settings.links || settings.links.length === 0) {
+    linksList.innerHTML = '<div class="empty-state">暂无链接，点击"添加链接"按钮创建</div>';
+    return;
+  }
+  
+  settings.links.forEach(link => {
+    const linkItem = document.createElement('div');
+    linkItem.className = 'link-item';
+    
+    // 图标部分
+    const iconHtml = link.iconType === 'image' 
+      ? `<img src="${link.iconValue}" alt="${link.name}">`
+      : link.iconValue;
+    
+    linkItem.innerHTML = `
+      <div class="link-icon">${iconHtml}</div>
+      <div class="link-info">
+        <div class="link-name">${escapeHtml(link.name)}</div>
+        <div class="link-url">${escapeHtml(link.url)}</div>
+      </div>
+      <div class="link-actions">
+        <button class="link-action-btn link-edit-btn" title="编辑" data-id="${link.id}">✏️</button>
+        <button class="link-action-btn link-delete-btn" title="删除" data-id="${link.id}">🗑️</button>
+      </div>
+    `;
+    
+    // 添加编辑和删除事件
+    const editBtn = linkItem.querySelector('.link-edit-btn');
+    const deleteBtn = linkItem.querySelector('.link-delete-btn');
+    
+    editBtn.addEventListener('click', () => {
+      showEditLinkDialog(link.id);
+    });
+    
+    deleteBtn.addEventListener('click', () => {
+      showDeleteLinkConfirm(link.id);
+    });
+    
+    linksList.appendChild(linkItem);
+  });
+}
+
+// 渲染链接显示区
+function renderLinksDisplay() {
+  linksDisplay.innerHTML = '';
+  
+  if (!settings.links || settings.links.length === 0) {
+    linksDisplay.classList.add('hidden');
+    if (linksRightTrigger) {
+      linksRightTrigger.classList.add('hidden');
+    }
+    return;
+  }
+  
+  // 清空之前的样式类
+  linksDisplay.className = 'links-display';
+  
+  // 应用当前的链接显示位置
+  if (settings.linksDisplayPosition === 'right') {
+    linksDisplay.classList.add('right-side');
+    if (linksRightTrigger) {
+      linksRightTrigger.classList.remove('hidden');
+    }
+    // 右侧模式时，放回原位置
+    if (linksDisplay.parentElement !== notesListContainer) {
+      notesListContainer.insertBefore(linksDisplay, notesList);
+    }
+  } else if (settings.linksDisplayPosition === 'bottom') {
+    linksDisplay.classList.add('bottom-side');
+    if (linksRightTrigger) {
+      linksRightTrigger.classList.add('hidden');
+    }
+    
+    // 底部模式时，确保链接显示区在body中
+    if (linksDisplay.parentElement !== document.body) {
+      // 将链接显示区移动到body末尾
+      document.body.appendChild(linksDisplay);
+    }
+  } else {
+    // 默认位置
+    if (linksRightTrigger) {
+      linksRightTrigger.classList.add('hidden');
+    }
+    
+    // 默认模式时，放回原位置
+    if (linksDisplay.parentElement !== notesListContainer) {
+      notesListContainer.insertBefore(linksDisplay, notesList);
+    }
+  }
+  
+  settings.links.forEach(link => {
+    const linkShortcut = document.createElement('div');
+    linkShortcut.className = 'link-shortcut';
+    linkShortcut.title = link.url;
+    
+    // 图标部分
+    const iconHtml = link.iconType === 'image' 
+      ? `<img src="${link.iconValue}" alt="${link.name}">`
+      : link.iconValue;
+    
+    linkShortcut.innerHTML = `
+      <div class="link-shortcut-icon">${iconHtml}</div>
+      <div class="link-shortcut-name">${escapeHtml(link.name)}</div>
+    `;
+    
+    // 添加点击事件
+    linkShortcut.addEventListener('click', () => {
+      openExternalLink(link.url);
+    });
+    
+    linksDisplay.appendChild(linkShortcut);
+  });
+  
+  linksDisplay.classList.remove('hidden');
+}
+
+// 打开外部链接
+function openExternalLink(url) {
+  ipcRenderer.invoke('open-external-link', url);
+}
+
+// 显示添加链接对话框
+function showAddLinkDialog() {
+  editLinkTitle.textContent = '添加链接';
+  currentEditingLinkId = null;
+  linkNameInput.value = '';
+  linkUrlInput.value = '';
+  
+  // 重置图标选择
+  selectedIconType = 'emoji';
+  selectedIconValue = '🔗';
+  updateIconPreview();
+  
+  // 隐藏表情选择器
+  emojiPicker.classList.add('hidden');
+  
+  editLinkDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  editLinkDialog.addEventListener('click', closeEditLinkDialogOnBlankClick);
+}
+
+// 显示编辑链接对话框
+function showEditLinkDialog(linkId) {
+  const link = settings.links.find(l => l.id === linkId);
+  if (!link) return;
+  
+  editLinkTitle.textContent = '编辑链接';
+  currentEditingLinkId = linkId;
+  linkNameInput.value = link.name;
+  linkUrlInput.value = link.url;
+  
+  // 设置当前图标
+  selectedIconType = link.iconType;
+  selectedIconValue = link.iconValue;
+  updateIconPreview();
+  
+  // 隐藏表情选择器
+  emojiPicker.classList.add('hidden');
+  
+  editLinkDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  editLinkDialog.addEventListener('click', closeEditLinkDialogOnBlankClick);
+}
+
+// 隐藏编辑链接对话框
+function hideEditLinkDialog() {
+  editLinkDialog.classList.add('hidden');
+  currentEditingLinkId = null;
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  editLinkDialog.removeEventListener('click', closeEditLinkDialogOnBlankClick);
+}
+
+// 点击空白处关闭编辑链接对话框
+function closeEditLinkDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === editLinkDialog) {
+    hideEditLinkDialog();
+  }
+}
+
+// 更新图标预览
+function updateIconPreview() {
+  if (selectedIconType === 'image') {
+    iconPreview.innerHTML = `<img src="${selectedIconValue}" alt="图标">`;
+  } else {
+    iconPreview.innerHTML = `<i class="default-icon">${selectedIconValue}</i>`;
+  }
+}
+
+// 切换表情选择器
+function toggleEmojiPicker() {
+  if (emojiPicker.classList.contains('hidden')) {
+    // 显示表情选择器
+    emojiPicker.classList.remove('hidden');
+    
+    // 生成表情列表
+    const emojiContainer = emojiPicker.querySelector('.emoji-container');
+    emojiContainer.innerHTML = '';
+    
+    // 常用表情列表
+    const emojis = [
+      // 常用符号和工具
+      '🔗', '🌐', '📝', '📚', '📰', '🔍', '📊', '📈', '📉', '📌', '📎', '🔖',
+      '📁', '📂', '📄', '📃', '📑', '🔒', '🔓', '🔏', '🔐', '🔑', '🗝️', '📱',
+      '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🔋', '🔌', '📷', '🎥', '🎬', '📺', '📻',
+      
+      // 娱乐和游戏
+      '📼', '📀', '💿', '💾', '💽', '🎮', '🕹️', '🎲', '♟️', '🎯', '🎱', '🎭',
+      '🎨', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎬', '🎮',
+      
+      // 表情
+      '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃',
+      '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
+      '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟',
+      
+      // 动物和自然
+      '🐱', '🐶', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐰', '🦊', '🐻', '🐹',
+      '🐭', '🦄', '🐴', '🦓', '🦒', '🐘', '🦏', '🐪', '🐫', '🦙', '🦘', '🦥',
+      
+      // 自然和天气
+      '🌈', '⭐', '🌟', '✨', '💫', '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️',
+      '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '🌪️', '🌫️', '🌊', '💦',
+      
+      // 食物和饮料
+      '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭',
+      '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥔', '🥕', '🌽', '🌶️', '🥒', '🥬'
+    ];
+    
+    emojis.forEach(emoji => {
+      const emojiItem = document.createElement('div');
+      emojiItem.className = 'emoji-item';
+      emojiItem.textContent = emoji;
+      
+      emojiItem.addEventListener('click', () => {
+        selectedIconType = 'emoji';
+        selectedIconValue = emoji;
+        updateIconPreview();
+        emojiPicker.classList.add('hidden');
+      });
+      
+      emojiContainer.appendChild(emojiItem);
+    });
+  } else {
+    // 隐藏表情选择器
+    emojiPicker.classList.add('hidden');
+  }
+}
+
+// 选择图标图片
+async function chooseIconImage() {
+  try {
+    const result = await ipcRenderer.invoke('choose-icon-image');
+    if (result.success) {
+      selectedIconType = 'image';
+      selectedIconValue = result.path;
+      updateIconPreview();
+    }
+  } catch (error) {
+    console.error('选择图标图片失败:', error);
+  }
+}
+
+// 保存链接
+async function saveLink() {
+  const name = linkNameInput.value.trim();
+  const url = linkUrlInput.value.trim();
+  
+  if (!name || !url) {
+    // 显示错误提示
+    confirmMessage.textContent = '请输入链接名称和URL';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.onclick = hideConfirmDialog;
+    return;
+  }
+  
+  // 验证URL格式
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    // 显示错误提示
+    confirmMessage.textContent = 'URL必须以http://或https://开头';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.onclick = hideConfirmDialog;
+    return;
+  }
+  
+  try {
+    if (currentEditingLinkId) {
+      // 编辑现有链接
+      const linkIndex = settings.links.findIndex(l => l.id === currentEditingLinkId);
+      if (linkIndex !== -1) {
+        settings.links[linkIndex] = {
+          ...settings.links[linkIndex],
+          name,
+          url,
+          iconType: selectedIconType,
+          iconValue: selectedIconValue,
+          updated: Date.now()
+        };
+      }
+    } else {
+      // 添加新链接
+      const newLink = {
+        id: generateUUID(),
+        name,
+        url,
+        iconType: selectedIconType,
+        iconValue: selectedIconValue,
+        created: Date.now()
+      };
+      
+      if (!settings.links) {
+        settings.links = [];
+      }
+      
+      settings.links.push(newLink);
+    }
+    
+    // 保存设置
+    await ipcRenderer.invoke('update-settings', settings);
+    
+    // 更新链接列表和显示区
+    renderLinksList();
+    renderLinksDisplay();
+    
+    // 隐藏对话框
+    hideEditLinkDialog();
+  } catch (error) {
+    console.error('保存链接失败:', error);
+    // 显示错误提示
+    confirmMessage.textContent = '保存链接失败';
+    confirmDialog.classList.remove('hidden');
+    confirmOkBtn.onclick = hideConfirmDialog;
+  }
+}
+
+// 显示删除链接确认对话框
+function showDeleteLinkConfirm(linkId) {
+  const link = settings.links.find(l => l.id === linkId);
+  if (!link) return;
+  
+  confirmMessage.textContent = `确定要删除链接"${link.name}"吗？`;
+  confirmDialog.classList.remove('hidden');
+  
+  confirmOkBtn.onclick = async () => {
+    try {
+      // 删除链接
+      settings.links = settings.links.filter(l => l.id !== linkId);
+      
+      // 保存设置
+      await ipcRenderer.invoke('update-settings', settings);
+      
+      // 更新链接列表和显示区
+      renderLinksList();
+      renderLinksDisplay();
+      
+      hideConfirmDialog();
+    } catch (error) {
+      console.error('删除链接失败:', error);
+      // 显示错误提示
+      confirmMessage.textContent = '删除链接失败';
+      confirmDialog.classList.remove('hidden');
+      confirmOkBtn.onclick = hideConfirmDialog;
+    }
+  };
+  
+  confirmCancelBtn.onclick = hideConfirmDialog;
+  
+  // 添加点击空白处关闭对话框的功能
+  confirmDialog.addEventListener('click', closeConfirmDialogOnBlankClick);
+}
+
+// 应用按钮位置
+function applyButtonPosition(position) {
+  if (buttonContainer) {
+    // 移除所有可能的位置类
+    buttonContainer.classList.remove('buttons-left', 'buttons-center', 'buttons-right');
+    
+    // 添加对应的位置类
+    buttonContainer.classList.add(`buttons-${position}`);
+  }
+}
+
+// 切换按钮位置
+async function toggleButtonPosition(position) {
+  settings.buttonPosition = position;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    applyButtonPosition(position);
+  } catch (error) {
+    console.error('更新按钮位置设置失败:', error);
+  }
+}
+
+// 显示分享对话框
+function showShareDialog() {
+  if (!currentNoteId) return;
+  shareDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  shareDialog.addEventListener('click', closeShareDialogOnBlankClick);
+}
+
+// 隐藏分享对话框
+function hideShareDialog() {
+  shareDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  shareDialog.removeEventListener('click', closeShareDialogOnBlankClick);
+}
+
+// 点击空白处关闭分享对话框
+function closeShareDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === shareDialog) {
+    hideShareDialog();
+  }
+}
+
+// 处理分享选项点击
+async function handleShareOption(event) {
+  const option = event.currentTarget;
+  const format = option.dataset.format;
+  
+  if (!currentNoteId || !format) return;
+  
+  try {
+    const note = await ipcRenderer.invoke('get-note', currentNoteId);
+    if (!note) return;
+    
+    // 根据选择的格式处理内容
+    let content = '';
+    let fileType = '';
+    let fileName = '';
+    
+    switch (format) {
+      case 'text':
+        // 提取纯文本
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = note.content;
+        content = `${note.title}\n\n${tempDiv.textContent || tempDiv.innerText || ''}`;
+        fileType = 'text/plain';
+        fileName = `${note.title.replace(/[\\/:*?"<>|]/g, '_')}.txt`;
+        break;
+        
+      case 'html':
+        // 导出HTML格式
+        content = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(note.title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+    h1 { color: #4a69bd; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(note.title)}</h1>
+  <div>${note.content}</div>
+</body>
+</html>`;
+        fileType = 'text/html';
+        fileName = `${note.title.replace(/[\\/:*?"<>|]/g, '_')}.html`;
+        break;
+        
+      case 'markdown':
+        // 导出Markdown格式
+        const htmlToMarkdown = (html) => {
+          // 简单的HTML到Markdown转换
+          let md = html.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+                      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+                      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+                      .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+                      .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+                      .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+                      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+                      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+                      .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+                      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+                      .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+                      .replace(/<a href="(.*?)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+                      .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1\n')
+                      .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1\n')
+                      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+                      .replace(/<br[^>]*>/gi, '\n')
+                      .replace(/<img src="(.*?)"[^>]*>/gi, '![]($1)')
+                      .replace(/<hr[^>]*>/gi, '---\n\n');
+          
+          // 移除所有剩余的HTML标签
+          md = md.replace(/<[^>]*>/g, '');
+          
+          // 清理多余的换行
+          md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
+          
+          return md;
+        };
+        
+        content = `# ${note.title}\n\n${htmlToMarkdown(note.content)}`;
+        fileType = 'text/markdown';
+        fileName = `${note.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
+        break;
+        
+      case 'image':
+        // 导出为图片需要使用主进程的功能
+        ipcRenderer.invoke('export-note-as-image', currentNoteId)
+          .then(result => {
+            if (result.success) {
+              // 显示成功消息
+              showToast('笔记已导出为图片');
+            } else {
+              showToast('导出图片失败: ' + result.error);
+            }
+          })
+          .catch(error => {
+            console.error('导出图片失败:', error);
+            showToast('导出图片失败');
+          });
+        hideShareDialog();
+        return;
+        
+      case 'app':
+        // 自定义应用分享
+        handleCustomAppShare(note);
+        hideShareDialog();
+        return;
+        
+      case 'email':
+        // 邮件分享
+        showEmailShareDialog(note);
+        hideShareDialog();
+        return;
+    }
+    
+    // 使用Electron的保存对话框
+    const result = await ipcRenderer.invoke('save-shared-note', {
+      content,
+      fileType,
+      fileName
+    });
+    
+    if (result.success) {
+      showToast('笔记已保存到: ' + result.filePath);
+    } else {
+      showToast('保存笔记失败');
+    }
+  } catch (error) {
+    console.error('分享笔记失败:', error);
+    showToast('分享笔记失败');
+  }
+  
+  hideShareDialog();
+}
+
+// 处理自定义应用分享
+async function handleCustomAppShare(note) {
+  try {
+    // 创建临时文件
+    const tempFile = await createTempFileForSharing(note);
+    if (!tempFile) {
+      showToast('准备分享内容失败');
+      return;
+    }
+
+    // 显示自定义应用选择对话框
+    showAppSelectDialog(tempFile);
+  } catch (error) {
+    console.error('自定义应用分享失败:', error);
+    showToast('分享失败');
+  }
+}
+
+// 显示应用选择对话框
+async function showAppSelectDialog(filePath) {
+  try {
+    // 清空容器
+    socialAppsContainer.innerHTML = '';
+    otherAppsContainer.innerHTML = '';
+    
+    // 保存文件路径到对话框数据属性
+    appSelectDialog.dataset.filePath = filePath;
+    
+    // 定义社交应用
+    const socialApps = [
+      { name: '微信', icon: '📱', id: 'WeChat' },
+      { name: 'QQ', icon: '💬', id: 'QQ' },
+      { name: '微博', icon: '🔄', id: 'Weibo' },
+      { name: '钉钉', icon: '📌', id: 'DingTalk' },
+      { name: '企业微信', icon: '🏢', id: 'WeCom' },
+      { name: '飞书', icon: '✈️', id: 'Feishu' },
+      { name: '和飞信', icon: '📨', id: 'Fetion' },
+      { name: '腾讯会议', icon: '👥', id: 'TencentMeeting' }
+    ];
+    
+    // 定义其他常用应用
+    const otherApps = [
+      { name: '记事本', icon: '📝', id: 'Notepad' },
+      { name: 'Word', icon: '📄', id: 'Word' },
+      { name: 'Excel', icon: '📊', id: 'Excel' },
+      { name: 'Chrome', icon: '🌐', id: 'Chrome' },
+      { name: 'Edge', icon: '🔍', id: 'Edge' },
+      { name: '邮件', icon: '📧', id: 'Mail' },
+      { name: '画图', icon: '🎨', id: 'Paint' },
+      { name: 'OneNote', icon: '📒', id: 'OneNote' }
+    ];
+    
+    // 渲染社交应用
+    socialApps.forEach(app => {
+      const appItem = createAppItem(app);
+      socialAppsContainer.appendChild(appItem);
+    });
+    
+    // 渲染其他应用
+    otherApps.forEach(app => {
+      const appItem = createAppItem(app);
+      otherAppsContainer.appendChild(appItem);
+    });
+    
+    // 显示对话框
+    appSelectDialog.classList.remove('hidden');
+    
+    // 添加点击空白处关闭对话框的功能
+    appSelectDialog.addEventListener('click', closeAppSelectDialogOnBlankClick);
+  } catch (error) {
+    console.error('显示应用选择对话框失败:', error);
+    showToast('无法显示应用列表');
+  }
+}
+
+// 创建应用项
+function createAppItem(app) {
+  const appItem = document.createElement('div');
+  appItem.className = 'app-item';
+  appItem.dataset.id = app.id;
+  
+  const appIcon = document.createElement('div');
+  appIcon.className = 'app-icon';
+  if (app.icon.startsWith('http')) {
+    const img = document.createElement('img');
+    img.src = app.icon;
+    img.alt = app.name;
+    appIcon.appendChild(img);
+  } else {
+    appIcon.textContent = app.icon;
+  }
+  
+  const appName = document.createElement('div');
+  appName.className = 'app-name';
+  appName.textContent = app.name;
+  
+  appItem.appendChild(appIcon);
+  appItem.appendChild(appName);
+  
+  // 添加点击事件
+  appItem.addEventListener('click', function() {
+    // 检查是否有保存的链接
+    const savedLink = getSavedAppLink(app.id);
+    
+    if (savedLink) {
+      // 如果有保存的链接，直接使用
+      openWithApp(app.id, app.name, savedLink);
+    } else {
+      // 否则显示链接输入对话框
+      showWebLinkDialog(app);
+    }
+  });
+  
+  return appItem;
+}
+
+// 获取保存的应用链接
+function getSavedAppLink(appId) {
+  if (!settings.appLinks) return null;
+  
+  const appLink = settings.appLinks.find(link => link.appId === appId);
+  return appLink ? appLink.url : null;
+}
+
+// 显示网站链接对话框
+function showWebLinkDialog(app) {
+  selectedAppForLink = app;
+  webLinkTitle.textContent = `为 ${app.name} 选择目标网址`;
+  
+  // 检查是否有保存的链接
+  const savedLink = getSavedAppLink(app.id);
+  if (savedLink) {
+    webLinkInput.value = savedLink;
+    rememberLinkToggle.checked = true;
+  } else {
+    webLinkInput.value = '';
+    rememberLinkToggle.checked = false;
+  }
+  
+  webLinkDialog.classList.remove('hidden');
+  webLinkInput.focus();
+  
+  // 添加点击空白处关闭对话框的功能
+  webLinkDialog.addEventListener('click', closeWebLinkDialogOnBlankClick);
+}
+
+// 隐藏网站链接对话框
+function hideWebLinkDialog() {
+  webLinkDialog.classList.add('hidden');
+  selectedAppForLink = null;
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  webLinkDialog.removeEventListener('click', closeWebLinkDialogOnBlankClick);
+}
+
+// 点击空白处关闭网站链接对话框
+function closeWebLinkDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === webLinkDialog) {
+    hideWebLinkDialog();
+  }
+}
+
+// 确认网站链接
+async function confirmWebLink() {
+  if (!selectedAppForLink) return;
+  
+  const link = webLinkInput.value.trim();
+  if (!link) {
+    showToast('请输入网站链接');
+    return;
+  }
+  
+  // 验证链接格式
+  if (!link.startsWith('http://') && !link.startsWith('https://')) {
+    showToast('链接必须以http://或https://开头');
+    return;
+  }
+  
+  // 如果选择了记住链接，保存设置
+  if (rememberLinkToggle.checked) {
+    await saveAppLink(selectedAppForLink.id, link);
+  }
+  
+  // 打开应用并传递链接
+  const filePath = appSelectDialog.dataset.filePath;
+  if (filePath) {
+    openWithApp(selectedAppForLink.id, selectedAppForLink.name, link);
+  }
+  
+  hideWebLinkDialog();
+}
+
+// 保存应用链接设置
+async function saveAppLink(appId, url) {
+  if (!settings.appLinks) {
+    settings.appLinks = [];
+  }
+  
+  // 检查是否已存在
+  const existingIndex = settings.appLinks.findIndex(link => link.appId === appId);
+  
+  if (existingIndex !== -1) {
+    // 更新现有链接
+    settings.appLinks[existingIndex].url = url;
+  } else {
+    // 添加新链接
+    settings.appLinks.push({
+      appId: appId,
+      url: url,
+      timestamp: Date.now()
+    });
+  }
+  
+  // 保存设置
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    console.log('应用链接设置已保存');
+  } catch (error) {
+    console.error('保存应用链接设置失败:', error);
+  }
+}
+
+// 使用指定应用打开文件
+async function openWithApp(appId, appName, webLink = null) {
+  const filePath = appSelectDialog.dataset.filePath;
+  if (!filePath) {
+    showToast('没有可分享的内容');
+    hideAppSelectDialog();
+    return;
+  }
+  
+  try {
+    // 向主进程发送请求，尝试使用指定应用打开文件
+    const result = await ipcRenderer.invoke('share-with-app', {
+      appPath: appId, // 应用ID/路径
+      filePath: filePath,
+      webLink: webLink // 添加网站链接参数
+    });
+    
+    if (result.success) {
+      showToast(`已尝试使用 ${appName} 打开`);
+    } else {
+      showToast('打开失败: ' + (result.error || '未知错误'));
+    }
+    
+    hideAppSelectDialog();
+  } catch (error) {
+    console.error('使用应用打开文件失败:', error);
+    showToast('打开失败');
+    hideAppSelectDialog();
+  }
+}
+
+// 显示标题颜色对话框
+function showTitleColorDialog() {
+  if (!currentNoteId) return;
+  
+  // 初始化对话框，设置当前标题颜色
+  const noteTitleElement = document.getElementById('note-title-display');
+  const currentColor = noteTitleElement.style.color || getComputedStyle(noteTitleElement).color;
+  
+  // 尝试转换当前颜色为十六进制
+  selectedTitleColor = rgbToHex(currentColor) || '#4a69bd';
+  customTitleColor.value = selectedTitleColor;
+  
+  // 清除所有预设颜色的选中状态
+  titleColorOptions.forEach(option => {
+    option.classList.remove('selected');
+    // 找到匹配的预设颜色并选中
+    if (option.dataset.color.toLowerCase() === selectedTitleColor.toLowerCase()) {
+      option.classList.add('selected');
+    }
+  });
+  
+  // 获取当前笔记背景颜色
+  const noteItem = document.querySelector(`.note-item[data-id="${currentNoteId}"]`);
+  if (noteItem) {
+    const currentBgColor = noteItem.style.backgroundColor || '#f5f5f5';
+    selectedBgColor = rgbToHex(currentBgColor) || '#f5f5f5';
+    customBgColor.value = selectedBgColor;
+    
+    // 清除所有预设背景颜色的选中状态并设置当前选中的背景颜色
+    bgColorOptions.forEach(option => {
+      option.classList.remove('selected');
+      if (option.dataset.color.toLowerCase() === selectedBgColor.toLowerCase()) {
+        option.classList.add('selected');
+      }
+    });
+  }
+  
+  titleColorDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  titleColorDialog.addEventListener('click', closeTitleColorDialogOnBlankClick);
+}
+
+// 隐藏标题颜色对话框
+function hideTitleColorDialog() {
+  titleColorDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  titleColorDialog.removeEventListener('click', closeTitleColorDialogOnBlankClick);
+}
+
+// 点击空白处关闭标题颜色对话框
+function closeTitleColorDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === titleColorDialog) {
+    hideTitleColorDialog();
+  }
+}
+
+// 应用标题颜色
+async function applyTitleColor() {
+  if (!currentNoteId || (!selectedTitleColor && !selectedBgColor)) {
+    hideTitleColorDialog();
+    return;
+  }
+  
+  try {
+    // 获取笔记数据
+    const note = await ipcRenderer.invoke('get-note', currentNoteId);
+    if (!note) return;
+    
+    // 更新标题颜色
+    const noteTitleElement = document.getElementById('note-title-display');
+    noteTitleElement.style.color = selectedTitleColor;
+    
+    // 更新笔记列表中对应项的背景颜色
+    const noteItem = document.querySelector(`.note-item[data-id="${currentNoteId}"]`);
+    if (noteItem && selectedBgColor) {
+      noteItem.style.backgroundColor = selectedBgColor;
+      noteItem.classList.add('custom-bg');
+    }
+    
+    // 保存颜色设置到笔记
+    if (!note.metadata) note.metadata = {};
+    note.metadata.titleColor = selectedTitleColor;
+    note.metadata.bgColor = selectedBgColor;
+    
+    // 通知主进程更新笔记元数据
+    await ipcRenderer.invoke('update-note-metadata', currentNoteId, note.metadata);
+    
+    hideTitleColorDialog();
+  } catch (error) {
+    console.error('应用颜色设置失败:', error);
+    showToast('设置颜色失败');
+  }
+}
+
+// RGB颜色转换为十六进制
+function rgbToHex(rgb) {
+  // 检查是否已经是十六进制
+  if (rgb.startsWith('#')) return rgb;
+  
+  // 提取RGB值
+  const rgbMatch = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  if (!rgbMatch) return null;
+  
+  const r = parseInt(rgbMatch[1], 10);
+  const g = parseInt(rgbMatch[2], 10);
+  const b = parseInt(rgbMatch[3], 10);
+  
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+// 打开系统应用选择器
+async function openSystemAppPicker() {
+  const filePath = appSelectDialog.dataset.filePath;
+  if (!filePath) {
+    showToast('没有可分享的内容');
+    hideAppSelectDialog();
+    return;
+  }
+  
+  try {
+    // 使用系统的"打开方式"对话框
+    await ipcRenderer.invoke('open-with-dialog', filePath);
+    hideAppSelectDialog();
+  } catch (error) {
+    console.error('打开系统应用选择器失败:', error);
+    showToast('打开失败');
+  }
+}
+
+// 隐藏应用选择对话框
+function hideAppSelectDialog() {
+  appSelectDialog.classList.add('hidden');
+  delete appSelectDialog.dataset.filePath;
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  appSelectDialog.removeEventListener('click', closeAppSelectDialogOnBlankClick);
+}
+
+// 点击空白处关闭应用选择对话框
+function closeAppSelectDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === appSelectDialog) {
+    hideAppSelectDialog();
+  }
+}
+
+// 显示简单的提示消息
+function showToast(message, duration = 3000) {
+  // 检查是否已存在toast元素
+  let toast = document.querySelector('.toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  
+  // 设置消息并显示
+  toast.textContent = message;
+  toast.classList.add('show');
+  
+  // 设置自动隐藏
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, duration);
+}
+
+// 显示邮件分享对话框
+function showEmailShareDialog(note) {
+  // 重置表单
+  fromEmailInput.value = '';
+  toEmailInput.value = '';
+  emailSubjectInput.value = `分享笔记：${note.title}`;
+  
+  // 保存当前笔记到对话框
+  emailShareDialog.dataset.noteId = note.id;
+  
+  // 显示对话框
+  emailShareDialog.classList.remove('hidden');
+  
+  // 添加点击空白处关闭对话框的功能
+  emailShareDialog.addEventListener('click', closeEmailShareDialogOnBlankClick);
+}
+
+// 隐藏邮件分享对话框
+function hideEmailShareDialog() {
+  emailShareDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  emailShareDialog.removeEventListener('click', closeEmailShareDialogOnBlankClick);
+}
+
+// 点击空白处关闭邮件分享对话框
+function closeEmailShareDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === emailShareDialog) {
+    hideEmailShareDialog();
+  }
+}
+
+// 发送邮件分享
+async function sendEmailShare() {
+  const noteId = emailShareDialog.dataset.noteId;
+  if (!noteId) {
+    showToast('没有要分享的笔记');
+    return;
+  }
+  
+  const fromEmail = fromEmailInput.value.trim();
+  const toEmail = toEmailInput.value.trim();
+  const subject = emailSubjectInput.value.trim() || '分享笔记';
+  
+  if (!toEmail) {
+    showToast('请输入收件人邮箱');
+    return;
+  }
+  
+  try {
+    // 获取笔记内容
+    const note = await ipcRenderer.invoke('get-note', noteId);
+    if (!note) {
+      showToast('笔记不存在');
+      return;
+    }
+    
+    // 提取纯文本内容
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = note.content;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // 构建邮件内容
+    const emailContent = `${note.title}\n\n${textContent}\n\n(此笔记由"小记事"应用分享)`;
+    
+    // 发送邮件
+    const result = await ipcRenderer.invoke('send-email', {
+      fromEmail,
+      toEmail,
+      subject,
+      content: emailContent
+    });
+    
+    if (result.success) {
+      showToast('已打开邮件应用');
+      hideEmailShareDialog();
+    } else {
+      showToast('发送邮件失败');
+    }
+  } catch (error) {
+    console.error('邮件分享失败:', error);
+    showToast('邮件分享失败');
+  }
+}
+
+// 创建临时文件用于分享
+async function createTempFileForSharing(note) {
+  try {
+    // 提取纯文本和HTML内容
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = note.content;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(note.title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+    h1 { color: #4a69bd; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(note.title)}</h1>
+  <div>${note.content}</div>
+</body>
+</html>`;
+    
+    // 创建临时文件
+    const result = await ipcRenderer.invoke('create-temp-files-for-sharing', {
+      title: note.title,
+      textContent: `${note.title}\n\n${textContent}`,
+      htmlContent: htmlContent
+    });
+    
+    if (result.success) {
+      return result.htmlPath; // 返回HTML文件路径，因为它包含格式
+    } else {
+      console.error('创建临时文件失败:', result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('创建临时文件失败:', error);
+    return null;
+  }
+}
+
+// 添加链接显示方式相关元素
+const linksPositionDefaultRadio = document.getElementById('links-position-default');
+const linksPositionRightRadio = document.getElementById('links-position-right');
+const linksPositionBottomRadio = document.getElementById('links-position-bottom');
+const linksRightTrigger = document.getElementById('links-right-trigger');
+
+// 应用链接显示位置
+function applyLinksDisplayPosition(position) {
+  if (linksDisplay) {
+    // 移除所有可能的位置类
+    linksDisplay.classList.remove('right-side', 'bottom-side');
+    
+    // 显示或隐藏右侧触发器
+    if (linksRightTrigger) {
+      linksRightTrigger.classList.add('hidden');
+    }
+    
+    // 添加对应的位置类并处理DOM位置
+    if (position === 'right') {
+      linksDisplay.classList.add('right-side');
+      if (linksRightTrigger) {
+        linksRightTrigger.classList.remove('hidden');
+      }
+      
+      // 右侧模式时，确保在列表容器中
+      if (linksDisplay.parentElement !== notesListContainer) {
+        notesListContainer.insertBefore(linksDisplay, notesList);
+      }
+    } else if (position === 'bottom') {
+      linksDisplay.classList.add('bottom-side');
+      
+      // 底部模式时，将链接显示区移动到body末尾
+      if (linksDisplay.parentElement !== document.body) {
+        document.body.appendChild(linksDisplay);
+      }
+    } else {
+      // 默认模式时，放回列表容器中
+      if (linksDisplay.parentElement !== notesListContainer) {
+        notesListContainer.insertBefore(linksDisplay, notesList);
+      }
+    }
+    
+    // 重新渲染链接显示
+    renderLinksDisplay();
+  }
+}
+
+// 切换链接显示位置
+async function toggleLinksDisplayPosition(position) {
+  settings.linksDisplayPosition = position;
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    applyLinksDisplayPosition(position);
+  } catch (error) {
+    console.error('更新链接显示位置设置失败:', error);
+  }
+}
+
+// 添加文本文件拖拽处理函数
+function setupTxtFileDragDrop() {
+  const dropZone = addNoteDialog;
+  
+  // 移除之前可能存在的事件监听器
+  dropZone.removeEventListener('dragover', handleDialogDragOver);
+  dropZone.removeEventListener('drop', handleDialogDrop);
+  
+  // 添加新的事件监听器
+  dropZone.addEventListener('dragover', handleDialogDragOver);
+  dropZone.addEventListener('drop', handleDialogDrop);
+}
+
+// 处理对话框拖拽悬停
+function handleDialogDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.dataTransfer.dropEffect = 'copy';
+}
+
+// 处理对话框拖拽放置
+async function handleDialogDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // 检查是否有文件拖入
+  if (event.dataTransfer.files.length > 0) {
+    const file = event.dataTransfer.files[0];
+    
+    // 检查是否是文本文件
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      try {
+        // 读取文本文件内容
+        const content = await readTextFile(file);
+        if (!content) return;
+        
+        // 提取第一行作为标题
+        const lines = content.split('\n');
+        let title = lines[0].trim();
+        
+        // 如果标题太长，截取一部分
+        if (title.length > 50) {
+          title = title.substring(0, 47) + '...';
+        }
+        
+        // 将剩余内容作为笔记正文
+        const noteContent = lines.slice(1).join('\n').trim();
+        
+        // 显示选择对话框
+        showTargetSelectionDialog(title, noteContent);
+      } catch (error) {
+        console.error('读取文本文件失败:', error);
+      }
+    } else {
+      showToast('只支持.txt文本文件');
+    }
+  }
+}
+
+// 读取文本文件
+function readTextFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      resolve(e.target.result);
+    };
+    
+    reader.onerror = function(e) {
+      reject(e);
+    };
+    
+    reader.readAsText(file);
+  });
+}
+
+// 添加选择目标对话框
+const targetSelectionDialog = document.createElement('div');
+targetSelectionDialog.className = 'dialog target-selection-dialog hidden';
+targetSelectionDialog.innerHTML = `
+  <div class="dialog-content">
+    <h2>选择添加位置</h2>
+    <div class="target-list-container">
+      <div id="target-list"></div>
+    </div>
+    <div class="new-outline-option">
+      <label>
+        <input type="radio" name="target-type" value="new" checked>
+        创建为新笔记
+      </label>
+    </div>
+    <div class="dialog-buttons">
+      <button id="target-cancel-btn" class="cancel-btn">取消</button>
+      <button id="target-confirm-btn" class="confirm-btn">确定</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(targetSelectionDialog);
+
+// 获取目标选择对话框元素
+const targetList = document.getElementById('target-list');
+const targetCancelBtn = document.getElementById('target-cancel-btn');
+const targetConfirmBtn = document.getElementById('target-confirm-btn');
+
+// 显示目标选择对话框
+async function showTargetSelectionDialog(title, content) {
+  try {
+    // 隐藏添加对话框
+    hideAddNoteDialog();
+    
+    // 获取所有笔记
+    const notes = await ipcRenderer.invoke('get-notes');
+    
+    // 渲染目标列表
+    renderTargetList(notes);
+    
+    // 存储文件内容到对话框数据属性
+    targetSelectionDialog.dataset.title = title;
+    targetSelectionDialog.dataset.content = content;
+    
+    // 显示目标选择对话框
+    targetSelectionDialog.classList.remove('hidden');
+    
+    // 添加按钮事件
+    targetCancelBtn.onclick = hideTargetSelectionDialog;
+    targetConfirmBtn.onclick = () => confirmTargetSelection(title, content);
+    
+    // 添加点击空白处关闭对话框的功能
+    targetSelectionDialog.addEventListener('click', closeTargetSelectionDialogOnBlankClick);
+  } catch (error) {
+    console.error('准备目标选择对话框失败:', error);
+  }
+}
+
+// 隐藏目标选择对话框
+function hideTargetSelectionDialog() {
+  targetSelectionDialog.classList.add('hidden');
+  
+  // 移除点击空白处关闭对话框的事件监听器
+  targetSelectionDialog.removeEventListener('click', closeTargetSelectionDialogOnBlankClick);
+}
+
+// 点击空白处关闭目标选择对话框
+function closeTargetSelectionDialogOnBlankClick(event) {
+  // 只有当点击的是对话框的背景（不是对话框内容）时才关闭
+  if (event.target === targetSelectionDialog) {
+    hideTargetSelectionDialog();
+  }
+}
+
+// 渲染目标列表
+function renderTargetList(notes) {
+  targetList.innerHTML = '';
+  
+  if (notes.length === 0) {
+    targetList.innerHTML = '<div class="empty-state">暂无笔记</div>';
+    return;
+  }
+  
+  // 递归渲染所有级别的笔记选项
+  const renderNoteOption = (note, level = 0) => {
+    const noteOption = document.createElement('div');
+    noteOption.className = 'target-option';
+    
+    // 根据级别添加缩进
+    const indent = '&nbsp;'.repeat(level * 4);
+    
+    noteOption.innerHTML = `
+      <label>
+        <input type="radio" name="target-type" value="${note.id}">
+        ${indent}${level > 0 ? '└ ' : ''}${escapeHtml(note.title)}
+      </label>
+    `;
+    
+    targetList.appendChild(noteOption);
+    
+    // 递归渲染子笔记
+    if (note.children && note.children.length > 0) {
+      note.children.forEach(child => {
+        renderNoteOption(child, level + 1);
+      });
+    }
+  };
+  
+  // 渲染所有笔记
+  notes.forEach(note => {
+    renderNoteOption(note);
+  });
+}
+
+// 确认目标选择
+async function confirmTargetSelection(title, content) {
+  // 获取选中的目标类型
+  const selectedTarget = document.querySelector('input[name="target-type"]:checked');
+  if (!selectedTarget) return;
+  
+  const targetValue = selectedTarget.value;
+  
+  try {
+    if (targetValue === 'new') {
+      // 创建新笔记
+      const newOutline = await ipcRenderer.invoke('add-outline', title);
+      // 设置内容
+      await ipcRenderer.invoke('update-note', newOutline.id, content, Date.now());
+      // 刷新笔记列表
+      await loadNotes();
+      // 打开新笔记
+      openNote(newOutline.id);
+    } else {
+      // 添加为子笔记
+      const newSubnote = await ipcRenderer.invoke('add-subnote', targetValue, title);
+      // 设置内容
+      await ipcRenderer.invoke('update-note', newSubnote.id, content, Date.now());
+      // 刷新笔记列表
+      await loadNotes();
+      // 打开新笔记
+      openNote(newSubnote.id);
+    }
+    
+    // 隐藏对话框
+    hideTargetSelectionDialog();
+  } catch (error) {
+    console.error('添加笔记失败:', error);
+    showToast('添加笔记失败');
+  }
+}
+
+// 添加全局样式
+function addGlobalStyles() {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = `
+    .target-selection-dialog {
+      z-index: 1001;
+    }
+    
+    .target-list-container {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+    }
+    
+    .target-option, .new-outline-option {
+      margin-bottom: 8px;
+    }
+    
+    .edit-title-input {
+      width: 100%;
+      padding: 2px 5px;
+      font-size: inherit;
+      font-family: inherit;
+      border: 1px solid #4a69bd;
+      border-radius: 3px;
+      outline: none;
+    }
+    
+    .note-title-text {
+      cursor: text;
+    }
+  `;
+  document.head.appendChild(styleElement);
+}
+
+// 修改添加笔记对话框，添加提示文本
+function addDragDropTipToDialog() {
+  // 使用已存在的addNoteDialog变量
+  if (addNoteDialog) {
+    // 检查是否已添加提示文本
+    if (addNoteDialog.querySelector('.drag-tip')) {
+      // 如果已存在，更新文本内容
+      const existingTip = addNoteDialog.querySelector('.drag-tip');
+      existingTip.textContent = '支持txt文本拖拽添加、支持笔记拖出为txt文本';
+      return;
+    }
+    
+    // 查找输入栏
+    const titleInput = addNoteDialog.querySelector('#note-title-input');
+    if (titleInput) {
+      // 添加提示文本元素
+      const dragTipElement = document.createElement('div');
+      dragTipElement.className = 'drag-tip';
+      dragTipElement.textContent = '支持txt文本拖拽添加、支持笔记拖出为txt文本';
+      
+      // 将提示文本添加到输入栏后面
+      titleInput.parentNode.insertBefore(dragTipElement, titleInput.nextSibling);
+      
+      // 添加样式
+      const styleElement = document.createElement('style');
+      styleElement.textContent = `
+        .drag-tip {
+          font-size: 12px;
+          color: #666;
+          text-align: left;
+          margin-top: 5px;
+          margin-bottom: 15px;
+          font-style: italic;
+          padding-left: 2px;
+        }
+      `;
+      document.head.appendChild(styleElement);
+    }
+  }
+}
+
+// 在DOM加载完成后添加提示文本
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+  addGlobalStyles();
+  addDragDropTipToDialog();
+});
+
+// 开始标题编辑
+function startTitleEdit(noteId, titleElement) {
+  const currentTitle = titleElement.textContent;
+  
+  // 保存原始标题到dataset
+  titleElement.dataset.originalTitle = currentTitle;
+  
+  // 创建输入框
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'edit-title-input';
+  titleInput.value = currentTitle;
+  
+  // 替换标题为输入框
+  titleElement.innerHTML = '';
+  titleElement.appendChild(titleInput);
+  
+  // 聚焦输入框并选中所有文本
+  titleInput.focus();
+  titleInput.select();
+  
+  // 添加输入事件
+  titleInput.addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+      saveTitleEdit(noteId, titleInput, titleElement);
+    } else if (event.key === 'Escape') {
+      cancelTitleEdit(titleElement, currentTitle);
+    }
+  });
+  
+  // 添加失焦事件
+  titleInput.addEventListener('blur', function() {
+    saveTitleEdit(noteId, titleInput, titleElement);
+  });
+  
+  // 阻止点击输入框时冒泡到笔记项
+  titleInput.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+}
+
+// 保存标题编辑
+async function saveTitleEdit(noteId, titleInput, titleElement) {
+  const newTitle = titleInput.value.trim();
+  
+  if (newTitle && newTitle !== titleElement.dataset.originalTitle) {
+    try {
+      // 更新笔记标题
+      const result = await ipcRenderer.invoke('update-note-title', noteId, newTitle);
+      
+      if (result.success) {
+        // 如果当前正在查看该笔记，也更新标题显示
+        if (currentNoteId === noteId) {
+          noteTitleDisplay.textContent = newTitle;
+        }
+        
+        // 恢复标题元素，显示新标题
+        titleElement.textContent = newTitle;
+        
+        // 刷新笔记列表以确保所有显示的地方都更新
+        loadNotes();
+      } else {
+        console.error('更新标题失败:', result.error);
+        titleElement.textContent = titleElement.dataset.originalTitle || titleElement.textContent;
+        showToast('更新标题失败');
+      }
+    } catch (error) {
+      console.error('更新标题失败:', error);
+      // 恢复原标题
+      titleElement.textContent = titleElement.dataset.originalTitle || titleElement.textContent;
+      showToast('更新标题失败');
+    }
+  } else {
+    // 如果标题没有变化或为空，恢复原标题
+    titleElement.textContent = titleElement.dataset.originalTitle || titleElement.textContent;
+  }
+}
+
+// 取消标题编辑
+function cancelTitleEdit(titleElement, originalTitle) {
+  titleElement.textContent = originalTitle;
+}
+
+// 更新最大层级预览
+function updateMaxLevelPreview() {
+  maxLevelValue.textContent = maxLevelSlider.value;
+}
+
+// 更改最大层级
+async function changeMaxLevel() {
+  settings.maxLevel = parseInt(maxLevelSlider.value);
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    updateMaxLevelPreview();
+  } catch (error) {
+    console.error('更新最大层级设置失败:', error);
+  }
+}
+
+// 更新最大子级数量预览
+function updateMaxChildrenPreview() {
+  const value = parseInt(maxChildrenSlider.value);
+  // 如果值为0则显示"无限制"，否则显示数值
+  maxChildrenValue.textContent = value === 0 ? '无限制' : value;
+}
+
+// 更改最大子级数量
+async function changeMaxChildren() {
+  settings.maxChildren = parseInt(maxChildrenSlider.value);
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    updateMaxChildrenPreview();
+  } catch (error) {
+    console.error('更新最大子级数量设置失败:', error);
+  }
+}
+
+// 添加新的无限制按钮处理函数
+async function setUnlimitedChildren() {
+  // 设置为0表示无限制
+  settings.maxChildren = 0;
+  
+  // 更新滑块和显示值
+  maxChildrenSlider.value = 0;
+  maxChildrenValue.textContent = '无限制';
+  
+  try {
+    await ipcRenderer.invoke('update-settings', settings);
+    showToast('已设置为无限制');
+  } catch (error) {
+    console.error('更新设置失败:', error);
+  }
+}

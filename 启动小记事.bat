@@ -1,0 +1,3 @@
+@echo off
+echo 正在启动小记事...
+start "" "%~dp0dist\win-unpacked\小记事.exe" 

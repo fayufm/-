@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小记事</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="add-menu.css">
+  <link rel="stylesheet" href="genre-style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 自定义标题栏 -->
+    <div class="custom-titlebar">
+      <div class="titlebar-drag-region">
+        <div class="titlebar-title">
+          <img src="29-ico.ico" class="titlebar-icon" alt="小记事">
+          小记事
+        </div>
+      </div>
+      <div class="titlebar-controls">
+        <button id="minimize-btn" class="titlebar-button" title="最小化">
+          <span></span>
+        </button>
+        <button id="maximize-btn" class="titlebar-button" title="最大化">
+          <span></span>
+        </button>
+        <button id="close-btn" class="titlebar-button" title="关闭">
+          <span></span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- 右侧链接触发器 -->
+    <div class="links-right-trigger hidden" id="links-right-trigger"></div>
+    
+    <main>
+      <div id="notes-list-container">
+        <div id="links-display" class="links-display hidden">
+          <!-- 链接快捷方式将在这里动态生成 -->
+        </div>
+        
+        <div id="notes-list">
+          <!-- 笔记列表将在这里动态生成 -->
+        </div>
+        
+        <!-- 文体类型快捷按钮区域，放置在底部按钮上方，作为倒数第二行 -->
+        <div class="assist-buttons-wrapper">
+          <button id="toggle-assist-buttons" class="toggle-assist-btn" title="展开/收起文体类型">
+            <span>📝</span>
+          </button>
+          <div id="assist-buttons" class="assist-buttons-container hidden">
+            <!-- 文体按钮将在这里动态生成 -->
+          </div>
+        </div>
+        
+        <div class="button-container">
+          <button id="links-btn" class="action-button">链接</button>
+          <button id="settings-btn" class="action-button">设置</button>
+          <button id="add-note-btn" class="action-button">添加</button>
+        </div>
+      </div>
+      
+      <div id="note-content-container" class="hidden">
+        <div id="note-controls">
+          <button id="back-btn">&lt; 返回</button>
+          <div id="note-title-display"></div>
+          <div class="action-buttons-group">
+            <button id="title-color-btn" class="action-button-small" title="标题颜色">
+              <span>🎨</span>
+            </button>
+            <button id="share-btn" class="action-button-small" title="分享">
+              <span>&#xE72D;</span>
+            </button>
+            <button id="expand-btn" class="action-button-small" title="放大">
+              <span>&#xE8A0;</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- 富文本工具栏 -->
+        <div class="format-toolbar">
+          <button class="format-btn" data-command="bold" title="粗体">B</button>
+          <button class="format-btn" data-command="italic" title="斜体">I</button>
+          <button class="format-btn" data-command="underline" title="下划线">U</button>
+          <button class="format-btn" data-command="strikeThrough" title="删除线">S</button>
+          <div class="separator"></div>
+          <button class="format-btn" data-command="justifyLeft" title="左对齐">&#xE8E4;</button>
+          <button class="format-btn" data-command="justifyCenter" title="居中对齐">&#xE8E3;</button>
+          <button class="format-btn" data-command="justifyRight" title="右对齐">&#xE8E2;</button>
+          <div class="separator"></div>
+          <button class="format-btn" data-command="insertUnorderedList" title="无序列表">&#xE8FD;</button>
+          <button class="format-btn" data-command="insertOrderedList" title="有序列表">&#xE8FE;</button>
+          <div class="separator"></div>
+          <select class="font-size" title="字号">
+            <option value="1">小</option>
+            <option value="3" selected>正常</option>
+            <option value="5">大</option>
+            <option value="7">超大</option>
+          </select>
+          <div class="color-picker">
+            <input type="color" id="text-color" title="文字颜色">
+            <label for="text-color">颜色</label>
+          </div>
+        </div>
+        
+        <div id="note-editor" contenteditable="true">
+          <!-- 笔记编辑区域 -->
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- 放大模式容器 -->
+  <div id="expanded-container" class="hidden">
+    <div class="expanded-header">
+      <button id="collapse-btn" class="action-button-small">
+        返回 &times;
+      </button>
+    </div>
+    <div id="expanded-content" contenteditable="true"></div>
+  </div>
+  
+  <!-- 添加笔记对话框 -->
+  <div id="add-note-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2 id="add-dialog-title">添加新笔记</h2>
+      <input type="text" id="note-title-input" placeholder="请输入标题">
+      <div class="dialog-buttons">
+        <button id="add-parent-btn" class="action-button parent-btn">添加父级</button>
+        <div class="spacer"></div>
+        <button id="cancel-btn">取消</button>
+        <button id="confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 设置对话框 -->
+  <div id="settings-dialog" class="dialog hidden settings-dialog">
+    <div class="dialog-content">
+      <h2>设置</h2>
+      <div class="settings-container">
+        <div class="settings-item">
+          <label>主题</label>
+          <div class="theme-selector">
+            <button id="light-theme-btn" class="theme-btn active">浅色</button>
+            <button id="dark-theme-btn" class="theme-btn">深色</button>
+          </div>
+        </div>
+        
+        <div class="settings-item">
+          <label>标题层级限制</label>
+          <div class="level-limit-container">
+            <input type="range" id="max-level-slider" min="2" max="7" step="1" class="slider">
+            <span id="max-level-value">5</span>级
+          </div>
+          <div class="setting-hint">设置笔记的最大层级数量（2-7级）</div>
+        </div>
+        
+        <div class="settings-item">
+          <label>子级标题数量限制</label>
+          <div class="child-limit-container">
+            <input type="range" id="max-children-slider" min="5" max="100" step="5" class="slider">
+            <span id="max-children-value">无限制</span>
+            <button id="unlimited-children-btn" class="action-button-small">无限制</button>
+          </div>
+          <div class="setting-hint">设置每个笔记可以添加的最大子级数量（点击"无限制"按钮取消限制）</div>
+        </div>
+        
+        <div class="settings-item">
+          <label for="fold-titles-toggle">自动折叠标题</label>
+          <div class="toggle-switch-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="fold-titles-toggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">默认折叠多级标题</span>
+          </div>
+        </div>
+        
+        <div class="settings-item">
+          <label>显示层级标志</label>
+          <div class="toggle-switch-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="show-level-badge-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">在笔记标题后显示层级</span>
+          </div>
+        </div>
+        
+        <div class="settings-item">
+          <label>背景设置：</label>
+          <div class="background-settings">
+            <div class="background-type">
+              <label>
+                <input type="radio" name="background-type" value="none" checked> 无背景
+              </label>
+              <label>
+                <input type="radio" name="background-type" value="color"> 纯色背景
+              </label>
+              <label>
+                <input type="radio" name="background-type" value="image"> 本地图片
+              </label>
+              <label>
+                <input type="radio" name="background-type" value="url"> 网络图片URL
+              </label>
+            </div>
+            
+            <div id="background-color-container" class="background-option hidden">
+              <input type="color" id="background-color" value="#f5f5f5">
+            </div>
+            
+            <div id="background-image-container" class="background-option hidden">
+              <button id="choose-background-image" class="action-button-small">选择图片</button>
+              <span id="selected-image-name"></span>
+            </div>
+            
+            <div id="background-url-container" class="background-option hidden">
+              <input type="text" id="background-url" placeholder="输入图片URL">
+            </div>
+            
+            <div id="background-adjustments" class="background-option hidden">
+              <div class="slider-container">
+                <label for="bg-opacity-slider">透明度：</label>
+                <input type="range" id="bg-opacity-slider" min="0" max="100" value="100" class="slider">
+                <span id="bg-opacity-value">100%</span>
+              </div>
+              <div class="slider-container">
+                <label for="bg-blur-slider">模糊度：</label>
+                <input type="range" id="bg-blur-slider" min="0" max="20" value="0" class="slider">
+                <span id="bg-blur-value">0px</span>
+              </div>
+              <div class="slider-container">
+                <label for="bg-zindex-slider">显示层级：</label>
+                <input type="range" id="bg-zindex-slider" min="-10" max="10" value="-1" class="slider">
+                <span id="bg-zindex-value">-1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-item">
+          <label>链接显示方式：</label>
+          <div class="links-display-settings">
+            <div class="position-option">
+              <input type="radio" name="links-display-position" id="links-position-default" value="default">
+              <label for="links-position-default">默认</label>
+            </div>
+            <div class="position-option">
+              <input type="radio" name="links-display-position" id="links-position-right" value="right">
+              <label for="links-position-right">软件右侧</label>
+            </div>
+            <div class="position-option">
+              <input type="radio" name="links-display-position" id="links-position-bottom" value="bottom">
+              <label for="links-position-bottom">软件底部</label>
+            </div>
+          </div>
+        </div>
+        <div class="settings-item">
+          <label>窗口透明度：</label>
+          <div class="slider-container">
+            <input type="range" id="opacity-slider" min="50" max="100" value="100" class="slider">
+            <span id="opacity-value">100%</span>
+          </div>
+        </div>
+        <div class="settings-item">
+          <label>表情包提示：</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="emoji-tips-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">点击时显示随机表情</span>
+        </div>
+        <div class="settings-item">
+          <label>按钮位置：</label>
+          <div class="position-settings">
+            <div class="position-option">
+              <input type="radio" name="button-position" id="position-left" value="left">
+              <label for="position-left">左侧</label>
+            </div>
+            <div class="position-option">
+              <input type="radio" name="button-position" id="position-center" value="center">
+              <label for="position-center">居中</label>
+            </div>
+            <div class="position-option">
+              <input type="radio" name="button-position" id="position-right" value="right">
+              <label for="position-right">右侧</label>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 添加"辅助添加"设置项 -->
+        <div class="settings-item">
+          <label>辅助添加：</label>
+          <div class="toggle-switch-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="assist-add-toggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">显示文体类型快捷添加按钮</span>
+          </div>
+          <div class="setting-hint">开启后，在左下角显示常见文体类型按钮，点击可快速创建对应类型的笔记</div>
+        </div>
+        
+        <div class="settings-item">
+          <label>文档管理：</label>
+          <div class="document-management">
+            <button id="backup-notes-btn" class="action-button">备份文档</button>
+            <button id="server-upload-btn" class="action-button">服务器上传</button>
+            <button id="memory-archive-btn" class="action-button">内存档</button>
+          </div>
+        </div>
+        <div class="settings-item sponsor-section">
+          <button id="sponsor-btn" class="action-button sponsor-btn">赞助开发者</button>
+          <div class="contact-info">若有问题或建议请联系3433725831@qq.com</div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="settings-close-btn">×</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 自定义确认对话框 -->
+  <div id="confirm-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>确认删除</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-buttons">
+        <button id="confirm-cancel-btn">取消</button>
+        <button id="confirm-ok-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 备份选择对话框 -->
+  <div id="backup-notes-dialog" class="dialog hidden">
+    <div class="dialog-content backup-dialog">
+      <h2>选择需要备份的笔记</h2>
+      <div id="backup-notes-list" class="backup-notes-list">
+        <!-- 笔记列表将在这里动态生成 -->
+      </div>
+      <div class="dialog-buttons">
+        <button id="backup-cancel-btn">取消</button>
+        <button id="backup-confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 备份路径对话框 -->
+  <div id="backup-path-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>备份设置</h2>
+      <div class="settings-item">
+        <label>备份路径：</label>
+        <div class="backup-path-container">
+          <input type="text" id="backup-path-input" placeholder="点击选择备份路径" readonly>
+          <button id="choose-backup-path-btn" class="action-button-small">浏览</button>
+        </div>
+      </div>
+      <div class="settings-item">
+        <label class="toggle-switch">
+          <input type="checkbox" id="auto-sync-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">自动同步更新备份</span>
+      </div>
+      <div class="dialog-buttons">
+        <button id="backup-path-cancel-btn">取消</button>
+        <button id="backup-path-confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 链接管理对话框 -->
+  <div id="links-dialog" class="dialog hidden">
+    <div class="dialog-content links-dialog">
+      <h2>链接管理</h2>
+      <div id="links-list" class="links-list">
+        <!-- 链接列表将在这里动态生成 -->
+      </div>
+      <div class="links-actions">
+        <button id="add-link-btn" class="action-button">添加链接</button>
+      </div>
+      <div class="dialog-buttons">
+        <button id="links-close-btn">关闭</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加/编辑链接对话框 -->
+  <div id="edit-link-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2 id="edit-link-title">添加链接</h2>
+      <div class="form-group">
+        <label>名称：</label>
+        <input type="text" id="link-name-input" placeholder="输入链接名称">
+      </div>
+      <div class="form-group">
+        <label>URL：</label>
+        <input type="text" id="link-url-input" placeholder="输入链接地址 (https://...)">
+      </div>
+      <div class="form-group">
+        <label>图标：</label>
+        <div class="icon-selector">
+          <div class="icon-preview" id="icon-preview">
+            <i class="default-icon">🔗</i>
+          </div>
+          <div class="icon-options">
+            <button id="choose-emoji-btn" class="action-button-small">选择表情</button>
+            <button id="choose-icon-image-btn" class="action-button-small">上传图片</button>
+          </div>
+        </div>
+      </div>
+      <div class="emoji-picker hidden" id="emoji-picker">
+        <div class="emoji-container">
+          <!-- 表情符号将在这里动态生成 -->
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="edit-link-cancel-btn">取消</button>
+        <button id="edit-link-confirm-btn">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 修改分享对话框 -->
+  <div id="share-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>分享笔记</h2>
+      <div class="share-options">
+        <div class="share-option" data-format="text">
+          <div class="share-icon">📄</div>
+          <div class="share-label">纯文本</div>
+        </div>
+        <div class="share-option" data-format="html">
+          <div class="share-icon">📝</div>
+          <div class="share-label">HTML</div>
+        </div>
+        <div class="share-option" data-format="markdown">
+          <div class="share-icon">📋</div>
+          <div class="share-label">Markdown</div>
+        </div>
+        <div class="share-option" data-format="image">
+          <div class="share-icon">🖼️</div>
+          <div class="share-label">图片</div>
+        </div>
+        <div class="share-option" data-format="app">
+          <div class="share-icon">📱</div>
+          <div class="share-label">其他应用打开</div>
+        </div>
+        <div class="share-option" data-format="email">
+          <div class="share-icon">📧</div>
+          <div class="share-label">邮箱分享</div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="share-cancel-btn">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加邮件分享对话框 -->
+  <div id="email-share-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>邮箱分享</h2>
+      <div class="form-group">
+        <label>发件人邮箱：</label>
+        <input type="email" id="from-email-input" placeholder="您的邮箱地址（选填）">
+      </div>
+      <div class="form-group">
+        <label>收件人邮箱：</label>
+        <input type="email" id="to-email-input" placeholder="对方的邮箱地址" required>
+      </div>
+      <div class="form-group">
+        <label>邮件主题：</label>
+        <input type="text" id="email-subject-input" placeholder="分享笔记">
+      </div>
+      <div class="dialog-buttons">
+        <button id="email-cancel-btn">取消</button>
+        <button id="email-send-btn">发送</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加应用选择对话框 -->
+  <div id="app-select-dialog" class="dialog hidden">
+    <div class="dialog-content app-selection-dialog">
+      <h2>选择应用打开</h2>
+      <div class="social-apps-section">
+        <h3>常用社交应用</h3>
+        <div id="social-apps" class="app-grid">
+          <!-- 社交应用将在这里动态生成 -->
+        </div>
+      </div>
+      <div class="other-apps-section">
+        <h3>其他应用</h3>
+        <div id="other-apps" class="app-grid">
+          <!-- 其他应用将在这里动态生成 -->
+        </div>
+      </div>
+      <div class="custom-app-section">
+        <button id="browse-app-btn" class="action-button">浏览其他应用...</button>
+      </div>
+      <div class="dialog-buttons">
+        <button id="app-select-cancel-btn">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加网站链接输入对话框 -->
+  <div id="web-link-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2 id="web-link-title">选择目标网址</h2>
+      <div class="form-group">
+        <label>网站链接：</label>
+        <input type="url" id="web-link-input" placeholder="请输入网站链接 (https://...)">
+      </div>
+      <div class="remember-option">
+        <label class="toggle-switch">
+          <input type="checkbox" id="remember-link-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">记住此链接</span>
+      </div>
+      <div class="dialog-buttons">
+        <button id="web-link-cancel-btn">取消</button>
+        <button id="web-link-confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加标题颜色选择对话框 -->
+  <div id="title-color-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>外观颜色</h2>
+      <div class="color-section">
+        <h3>标题颜色</h3>
+        <div class="color-picker-container">
+          <div class="preset-colors">
+            <div class="color-option title-color-option" data-color="#4a69bd" style="background-color: #4a69bd;"></div>
+            <div class="color-option title-color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div>
+            <div class="color-option title-color-option" data-color="#2ecc71" style="background-color: #2ecc71;"></div>
+            <div class="color-option title-color-option" data-color="#f39c12" style="background-color: #f39c12;"></div>
+            <div class="color-option title-color-option" data-color="#9b59b6" style="background-color: #9b59b6;"></div>
+            <div class="color-option title-color-option" data-color="#1abc9c" style="background-color: #1abc9c;"></div>
+            <div class="color-option title-color-option" data-color="#34495e" style="background-color: #34495e;"></div>
+            <div class="color-option title-color-option" data-color="#7f8c8d" style="background-color: #7f8c8d;"></div>
+          </div>
+          <div class="custom-color">
+            <label>自定义颜色：</label>
+            <input type="color" id="custom-title-color">
+          </div>
+        </div>
+      </div>
+      
+      <!-- 文体类型颜色部分 - 使用 CSS 隐藏 -->
+      <div class="color-section" id="genre-color-section" style="display: none;">
+        <h3>文体类型颜色</h3>
+        <div class="color-picker-container">
+          <div class="preset-colors">
+            <div class="color-option genre-color-option" data-color="#ff6b6b" style="background-color: #ff6b6b;"></div>
+            <div class="color-option genre-color-option" data-color="#ff922b" style="background-color: #ff922b;"></div>
+            <div class="color-option genre-color-option" data-color="#fcc419" style="background-color: #fcc419;"></div>
+            <div class="color-option genre-color-option" data-color="#51cf66" style="background-color: #51cf66;"></div>
+            <div class="color-option genre-color-option" data-color="#339af0" style="background-color: #339af0;"></div>
+            <div class="color-option genre-color-option" data-color="#5f3dc4" style="background-color: #5f3dc4;"></div>
+            <div class="color-option genre-color-option" data-color="#845ef7" style="background-color: #845ef7;"></div>
+            <div class="color-option genre-color-option" data-color="#f06595" style="background-color: #f06595;"></div>
+          </div>
+          <div class="custom-color">
+            <label>自定义颜色：</label>
+            <input type="color" id="custom-genre-color" value="#4a69bd">
+          </div>
+        </div>
+      </div>
+      
+      <div class="color-section">
+        <h3>背景颜色</h3>
+        <div class="color-picker-container">
+          <div class="preset-colors">
+            <div class="color-option bg-color-option" data-color="#f5f5f5" style="background-color: #f5f5f5;"></div>
+            <div class="color-option bg-color-option" data-color="#f0e5d3" style="background-color: #f0e5d3;"></div>
+            <div class="color-option bg-color-option" data-color="#e8f0dc" style="background-color: #e8f0dc;"></div>
+            <div class="color-option bg-color-option" data-color="#d3e5f0" style="background-color: #d3e5f0;"></div>
+            <div class="color-option bg-color-option" data-color="#f0d3e0" style="background-color: #f0d3e0;"></div>
+            <div class="color-option bg-color-option" data-color="#e5d5f0" style="background-color: #e5d5f0;"></div>
+            <div class="color-option bg-color-option" data-color="#fffacd" style="background-color: #fffacd;"></div>
+            <div class="color-option bg-color-option" data-color="#e0ffff" style="background-color: #e0ffff;"></div>
+            <div class="color-option bg-color-option" data-color="#ffdab9" style="background-color: #ffdab9;"></div>
+            <div class="color-option bg-color-option" data-color="#f0fff0" style="background-color: #f0fff0;"></div>
+            <div class="color-option bg-color-option" data-color="#e6e6fa" style="background-color: #e6e6fa;"></div>
+            <div class="color-option bg-color-option" data-color="#f4f0ec" style="background-color: #f4f0ec;"></div>
+            <div class="color-option bg-color-option" data-color="#fff0f5" style="background-color: #fff0f5;"></div>
+            <div class="color-option bg-color-option" data-color="#f5fffa" style="background-color: #f5fffa;"></div>
+            <div class="color-option bg-color-option" data-color="#e8f4f8" style="background-color: #e8f4f8;"></div>
+            <div class="color-option bg-color-option" data-color="#f5f5dc" style="background-color: #f5f5dc;"></div>
+            <div class="color-option bg-color-option" data-color="#ffefd5" style="background-color: #ffefd5;"></div>
+            <div class="color-option bg-color-option" data-color="#f0f8ff" style="background-color: #f0f8ff;"></div>
+            <div class="color-option bg-color-option" data-color="#fff5ee" style="background-color: #fff5ee;"></div>
+            <div class="color-option bg-color-option" data-color="#f5deb3" style="background-color: #f5deb3;"></div>
+          </div>
+          <div class="custom-color">
+            <label>自定义颜色：</label>
+            <input type="color" id="custom-bg-color" value="#f5f5f5">
+          </div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="title-color-cancel-btn">取消</button>
+        <button id="title-color-confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加服务器上传对话框 -->
+  <div id="server-upload-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>选择需要上传的笔记</h2>
+      <div id="upload-notes-list" class="backup-notes-list">
+        <!-- 笔记列表将在这里动态生成 -->
+      </div>
+      <div class="dialog-buttons">
+        <button id="upload-cancel-btn">取消</button>
+        <button id="upload-confirm-btn">下一步</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 服务器配置对话框 -->
+  <div id="server-config-dialog" class="dialog hidden">
+    <div class="dialog-content">
+      <h2>服务器配置</h2>
+      <div class="form-group">
+        <label>服务器地址：</label>
+        <input type="text" id="server-url-input" placeholder="如：http://example.com/upload">
+      </div>
+      <div class="form-group">
+        <label>用户名：</label>
+        <input type="text" id="server-username-input" placeholder="可选">
+      </div>
+      <div class="form-group">
+        <label>密码：</label>
+        <input type="password" id="server-password-input" placeholder="可选">
+      </div>
+      <div class="form-group">
+        <label>API密钥：</label>
+        <input type="text" id="server-api-key-input" placeholder="可选">
+      </div>
+      <div class="form-group">
+        <label>自定义请求头：</label>
+        <textarea id="server-headers-input" placeholder="格式：键: 值（每行一个）"></textarea>
+      </div>
+      <div class="setting-hint">请确保服务器地址正确，支持HTTP、HTTPS协议</div>
+      <div class="checkbox-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="remember-server-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">记住服务器设置</span>
+      </div>
+      <div class="dialog-buttons">
+        <button id="server-config-cancel-btn">取消</button>
+        <button id="server-config-confirm-btn">上传</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="renderer.js"></script>
+  <script src="renderer-patch.js"></script>
+  <script src="server-upload.js"></script>
+  
+  <!-- 辅助添加功能脚本 -->
+  <script src="assist-add.js"></script>
+  
+  <!-- 标题格式化脚本 -->
+  <script src="format-title.js"></script>
+  
+  <!-- 文体类型颜色按钮和对话框处理脚本 -->
+  <script src="genre-color-button.js"></script>
+  
+  <!-- 新的颜色修复脚本（替代所有颜色相关脚本） -->
+  <script src="fix-color-all.js"></script>
+  
+  <!-- 父级按钮功能修复脚本 -->
+  <script src="parent-button-fix.js"></script>
+  
+  <!-- 对话框中的添加父级按钮处理脚本 -->
+  <script src="dialog-parent-button.js"></script>
+  
+  <!-- 文体类型颜色修复脚本（精简版V2）- 前置修复尝试 -->
+  <script src="genre-color-fix-new.js"></script>
+  
+  <!-- 强制颜色修复脚本 - 确保作为最后加载的脚本 -->
+  <script src="force-genre-color.js"></script>
+</body>
+</html> 

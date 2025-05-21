@@ -1,0 +1,48 @@
+/* 文体类型标签全局样式 */
+
+/* 基本样式定义 */
+.genre-badge {
+  display: inline-block !important;
+  margin-left: 8px !important;
+  font-size: 0.8em !important;
+  font-style: italic !important;
+  font-family: 'Kaiti', 'STKaiti', 'FangSong', 'STFangSong', cursive !important;
+  font-weight: normal !important;
+  opacity: 0.9 !important;
+  transition: color 0.2s ease, transform 0.2s ease !important;
+  letter-spacing: 1px !important;
+  text-shadow: 0px 0px 1px rgba(0,0,0,0.1) !important;
+  transform: scale(0.9) !important;
+  vertical-align: baseline !important;
+  position: relative !important;
+  top: -1px !important;
+  border-left: 1px solid rgba(0,0,0,0.1) !important;
+  padding-left: 8px !important;
+}
+
+/* 确保在暗色主题下也能看清 */
+body.dark-theme .genre-badge {
+  text-shadow: 0px 0px 1px rgba(255,255,255,0.2) !important;
+  border-left: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+/* 确保文体类型标签在标题中显示正确 */
+.note-title-text .genre-badge,
+#note-title-display .genre-badge {
+  color: inherit !important; /* 默认继承父元素颜色 */
+}
+
+/* 当通过style属性设置颜色时，优先使用内联样式的颜色 */
+.genre-badge[style*="color"] {
+  color: inherit !important;
+}
+
+/* 确保在列表视图中的文体类型标签样式正确 */
+.note-item .note-title-text .genre-badge {
+  font-size: 0.75em !important;
+}
+
+/* 悬停效果 */
+.genre-badge:hover {
+  opacity: 1 !important;
+} 
