@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>小记事</title>
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="add-menu.css">
   <link rel="stylesheet" href="genre-style.css">
@@ -693,5 +694,8 @@
   
   <!-- 强制颜色修复脚本 - 确保作为最后加载的脚本 -->
   <script src="force-genre-color.js"></script>
+  
+  <!-- 修复子级笔记创建的脚本 - 最后加载确保覆盖其他脚本 -->
+  <script src="fix-child-notes.js"></script>
 </body>
 </html> 

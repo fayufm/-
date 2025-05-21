@@ -263,35 +263,53 @@ document.addEventListener('DOMContentLoaded', () => {
       window.hideAddNoteDialog();
       
       try {
-        if (window.isAddingSubnote && window.selectedOutlineId) {
+        // 显式检查全局变量，确保访问window上的属性
+        const isSubnote = window.isAddingSubnote === true;
+        const selectedId = window.selectedOutlineId;
+        const selectedLevel = window.selectedNoteLevel || 1;
+        
+        console.log(`添加笔记: 标题=${formattedTitle}, 作为子笔记=${isSubnote}, 父ID=${selectedId}, 父级层级=${selectedLevel}`);
+        
+        if (isSubnote && selectedId) {
           // 添加子笔记
-          const result = await ipcRenderer.invoke('add-subnote', window.selectedOutlineId, formattedTitle);
+          const result = await ipcRenderer.invoke('add-subnote', selectedId, formattedTitle);
           
-          if (result.error) {
+          if (result && result.error) {
             window.showToast(result.error);
             return;
           }
           
           // 设置文体类型
-          if (genre) {
+          if (genre && result && result.id) {
             await ipcRenderer.invoke('update-note-metadata', result.id, { genre });
           }
           
           // 重新加载笔记列表
           await window.loadNotes();
-          window.openNote(result.id);
+          if (result && result.id) {
+            window.openNote(result.id);
+          }
+          
+          // 显示成功提示
+          const newLevel = selectedLevel + 1;
+          window.showToast(`成功添加"${title}"(${newLevel}级)`);
         } else {
           // 添加顶层笔记
           const newOutline = await ipcRenderer.invoke('add-outline', formattedTitle);
           
           // 设置文体类型
-          if (genre) {
+          if (genre && newOutline && newOutline.id) {
             await ipcRenderer.invoke('update-note-metadata', newOutline.id, { genre });
           }
           
           // 重新加载笔记列表
           await window.loadNotes();
-          window.openNote(newOutline.id);
+          if (newOutline && newOutline.id) {
+            window.openNote(newOutline.id);
+          }
+          
+          // 显示成功提示
+          window.showToast(`成功添加"${title}"(1级)`);
         }
       } catch (error) {
         console.error('添加笔记失败:', error);
